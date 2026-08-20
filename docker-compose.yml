@@ -1,0 +1,53 @@
+# Agentic DevOps Extravaganza — docker-compose
+#
+# Three run modes:
+#
+#   1) site   — just the static showcase page on :8080
+#   2) demo   — site + mock K8s API on :8443 + Z.AI proxy on :8081
+#   3) full   — demo + the robusta autonomous SRE flow (one-shot)
+#
+# Usage:
+#   docker compose up site          # static site only
+#   docker compose up demo          # full stack
+#   docker compose run robusta      # run the robusta demo once
+#
+# To use the Z.AI proxy (real LLM calls), drop your .z-ai-config at the
+# repo root and docker compose will mount it read-only.
+
+services:
+
+  site:
+    build: .
+    image: agentic-devops-extravaganza:latest
+    container_name: agentic-devops-site
+    ports:
+      - "8080:80"
+    restart: unless-stopped
+
+  demo:
+    build: .
+    image: agentic-devops-extravaganza:latest
+    container_name: agentic-devops-demo
+    ports:
+      - "8080:80"
+      - "8443:8443"
+      - "8081:8081"
+    volumes:
+      # Mount your Z.AI config read-only. See README for format.
+      - ./.z-ai-config:/run/secrets/zai-config:ro
+    command: ["demo"]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+
+  robusta:
+    build: .
+    image: agentic-devops-extravaganza:latest
+    container_name: agentic-devops-robusta
+    volumes:
+      - ./.z-ai-config:/run/secrets/zai-config:ro
+    command: ["robusta"]
+    restart: "no"

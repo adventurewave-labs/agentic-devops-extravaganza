@@ -1,0 +1,148 @@
+================================================================================
+🤖 ROBUSTA AUTONOMOUS SRE - ALERT INVESTIGATION
+================================================================================
+
+📥 Received Prometheus Alertmanager webhook:
+--------------------------------------------------------------------------------
+{
+  "version": "4",
+  "groupKey": "{}:{alertname=\"PaymentAPIHighErrorRate\"}",
+  "status": "firing",
+  "receiver": "robusta",
+  "groupLabels": {
+    "alertname": "PaymentAPIHighErrorRate"
+  },
+  "commonLabels": {
+    "alertname": "PaymentAPIHighErrorRate",
+    "severity": "critical",
+    "namespace": "payment-prod",
+    "service": "payment-api"
+  },
+  "commonAnnotations": {
+    "summary": "Payment API error rate above 5% for 5 minutes",
+    "description": "Payment API is returning 5xx errors to 12.4% of requests. Threshold: 5%. The service has been erroring since the last deployment (payment-api rev 3) 28 minutes ago.",
+    "runbook_url": "https://runbooks.internal.acme.io/payment-api-high-error-rate"
+  },
+  "externalURL": "https://prometheus.internal.acme.io/alertmanager",
+  "alerts": [
+    {
+      "status": "firing",
+      "labels": {
+        "alertname": "PaymentAPIHighErrorRate",
+        "severity": "critical",
+        "namespace": "payment-prod",
+        "service": "payment-api",
+        "pod": "payment-api-7c4f5b-x9qkl"
+      },
+      "annotations": {
+        "summary": "Payment API error rate above 5% for 5 minutes",
+        "description": "Payment API is returning 5xx erro
+... (truncated)
+
+
+================================================================================
+🔎 Step 1: Gathering cluster context via Kubernetes API
+================================================================================
+
+✓ Queried pod status: payment-api-7c4f5b-x9qkl
+✓ Queried pod events
+✓ Queried deployment status: payment-api
+✓ Queried namespace events
+✓ Queried node: worker-1
+
+Cluster context snapshot:
+--------------------------------------------------------------------------------
+  pod:
+    {"conditions":[{"lastProbeTime":null,"lastTransitionTime":"2026-08-20T03:32:11Z","status":"True","type":"Initialized"},{"lastTransitionTime":"2026-08-20T03:34:02Z","message":"Containers with unready status: [api]","reason":"ContainersNotReady","status":"False","type":"Ready"},{"lastTransitionTime":"...
+
+  pod_events:
+    NAME                               AGE
+    payment-api-7c4f5b-x9qkl.17a4      <unknown>
+    payment-worker-6d8b2c-p3mnr.17b1   <unknown>
+    payment-worker-6d8b2c-p3mnr.17b2   <unknown>
+    ... (6 lines total)
+
+  deployment:
+    
+
+  recent_events:
+    NAME                               AGE
+    payment-api-deploy.17e0            <unknown>
+    payment-api-7c4f5b-x9qkl.17a4      <unknown>
+    payment-worker-6d8b2c-p3mnr.17b1   <unknown>
+    ... (6 lines total)
+
+  node:
+    [{"lastTransitionTime":"2026-08-15T08:00:30Z","status":"True","type":"Ready"},{"status":"False","type":"MemoryPressure"},{"status":"False","type":"DiskPressure"},{"status":"False","type":"PIDPressure"},{"status":"False","type":"NetworkUnavailable"}]
+
+
+================================================================================
+🧠 Step 2: Sending alert + context to GLM-4.5 for root-cause analysis
+================================================================================
+
+Prompt sent to LLM:
+--------------------------------------------------------------------------------
+  You are an autonomous SRE agent (Robusta) investigating a Prometheus alert.
+  
+  ALERT: PaymentAPIHighErrorRate
+  SEVERITY: critical
+  NAMESPACE: payment-prod
+  SERVICE: payment-api
+  POD: payment-api-7c4f5b-x9qkl
+  STARTED: 2026-08-20T03:42:00Z
+  
+  SUMMARY: Payment API error rate above 5% for 5 minutes
+  DESCRIPTION: Payment API is returning 5xx errors to 12.4% of requests. Threshold: 5%. The service ha
+  
+  CLUSTER CONTEXT GATHERED:
+  - Pod status (payment-api-7c4f5b-x9qkl): {"conditions":[{"lastProbeTime":null,"lastTransitionTime":"
+  - Pod events: NAME                               AGE
+  payment-api-7c4f5b-x9qkl.17a4      <unknown>
+  payment-worker-6d8b2c-p3mnr.17b1   <unknown>
+  payment-worker-6d8b2c-p3mnr.17b2   <unknown>
+  payment-data-pvc.17c0              <unknown>
+  payment-api-deploy.17e0            <unknown>
+  ... (48 total lines)
+
+⏳ Calling GLM via Z.AI API...
+[proxy] cache MISS -> Z.AI  (key=abffe524)  prompt_len=2186
+✓ Response received in 6.9s (751 chars)
+
+
+================================================================================
+📤 Step 3: Posting investigation to Slack (#sre-incidents)
+================================================================================
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ 🚨 Incident: PaymentAPIHighErrorRate                  🔴 CRITICAL          │
+│ Started: 2026-08-20 03:42 UTC | Duration: 18m | SRE: Robusta AI            │
+├────────────────────────────────────────────────────────────────────────────┤
+│                                                                            │
+│ ## 🔥 Root Cause                                                            │
+│ The `payment-api` pod is in a `ContainersNotReady` state, likely due to a  │
+│ crash loop or failed startup, causing the high 5xx error rate.             │
+│                                                                            │
+│ ## Evidence                                                                │
+│ - Pod status is `False` for `Ready` and `ContainersReady` since 03:34:02Z. │
+│ - Container status message: "Containers with unready status: [api]".       │
+│ - Alert started 28 minutes ago, coinciding with the deployment of          │
+│ `payment-api rev 3`.                                                       │
+│                                                                            │
+│ ## Impact                                                                  │
+│ Critical: Payment API is unavailable, with 12.4% of requests failing. All  │
+│ payment processing is likely impacted.                                     │
+│                                                                            │
+│ ## Recommended Action                                                      │
+│ Check the pod's logs for the `api` container: `kubectl logs payment-       │
+│ api-7c4f5b-x9qkl -c api --previous`. If the container is crashing, roll    │
+│ back the deployment: `kubectl rollout undo deployment/payment-api`.        │
+│                                                                            │
+├────────────────────────────────────────────────────────────────────────────┤
+│ 📊 Graphs: prometheus.internal.acme.io/graph?g0.expr=...                   │
+│ 📋 Runbook: runbooks.internal.acme.io/payment-api-high-error-rate          │
+│ 🔗 Related: https://grafana.internal.acme.io/d/payment-api                 │
+└────────────────────────────────────────────────────────────────────────────┘
+
+✅ Investigation complete. Alert has been acknowledged in PagerDuty.
+✅ Jira ticket PAY-1247 created with full RCA attached.
+

@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# AOPS runtime artifacts
+var/
+*.log
+*.pid
+
+# Editor
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Secrets (NEVER commit)
+.z-ai-config
+*.token
+.env
+upload/
+
+# Binaries downloaded for local testing (not part of source)
+bin/
+
+# Generated certs (regenerated at build/runtime)
+mock-k8s/cert.pem
+mock-k8s/key.pem
+
+# Tool output scratch
+tool-results/

@@ -1,0 +1,129 @@
+Service payment-prod/payment-api-svc does not exist
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 7,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "payment-prod/payment-api",
+      "error": [
+        {
+          "Text": "Deployment payment-prod/payment-api has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "payment-prod",
+              "Masked": "YSNVVSQjbDVwUHM3"
+            },
+            {
+              "Unmasked": "payment-api",
+              "Masked": "NCZ5Tn1hK3ZFWzc="
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Deployment",
+      "name": "payment-prod/payment-worker",
+      "error": [
+        {
+          "Text": "Deployment payment-prod/payment-worker has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "payment-prod",
+              "Masked": "TUJ0dy1kX3J3eWQ3"
+            },
+            {
+              "Unmasked": "payment-worker",
+              "Masked": "Yi8qNnVXaUVYUnZPbG0="
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Node",
+      "name": "worker-3",
+      "error": [
+        {
+          "Text": "worker-3 has condition of type DiskPressure, reason KubeletHasNoDiskSpace: kubelet has disk pressure",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "worker-3",
+              "Masked": "aFlpcEc6MVo="
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Ingress",
+      "name": "payment-prod/payment-ingress",
+      "error": [
+        {
+          "Text": "Ingress uses the ingress class nginx which does not exist.",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "nginx",
+              "Masked": "T00uJmg="
+            }
+          ]
+        },
+        {
+          "Text": "Ingress uses the service payment-prod/payment-frontend which does not exist.",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "payment-prod",
+              "Masked": "MElaOWRWSVhtLjtN"
+            },
+            {
+              "Unmasked": "payment-frontend",
+              "Masked": "RChFblghVjRSRzMjcWVheA=="
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "payment-prod/payment-api-7c4f5b-x9qkl",
+      "error": [
+        {
+          "Text": "the last termination reason is Error container=api pod=payment-api-7c4f5b-x9qkl",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "payment-prod/payment-worker-6d8b2c-p3mnr",
+      "error": [
+        {
+          "Text": "the last termination reason is OOMKilled container=worker pod=payment-worker-6d8b2c-p3mnr",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    }
+  ]
+}
