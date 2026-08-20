@@ -1,6 +1,6 @@
 # Agentic DevOps Extravaganza
 
-[![Deploy to Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fcreandotumatrix-labs%2Fagentic-devops-extravaganza)
+[![Deploy to Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fadventurewave-labs%2Fagentic-devops-extravaganza)
 [![License: MIT](https://img.shields.io/badge/License-MIT-326ce5.svg)](LICENSE)
 [![K8sGPT: v0.4.36](https://img.shields.io/badge/K8sGPT-v0.4.36-00d9ff.svg)](https://github.com/k8sgpt-ai/k8sgpt)
 [![LLM: GLM-4.5](https://img.shields.io/badge/LLM-GLM--4.5-b388ff.svg)](https://z.ai)
@@ -48,14 +48,14 @@ When k8sgpt scans that state, it emits **6 findings** in <1 second. Adding `--ex
 
 ### Option A — Static site (Vercel, one click)
 
-[![Deploy to Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fcreandotumatrix-labs%2Fagentic-devops-extravaganza)
+[![Deploy to Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fadventurewave-labs%2Fagentic-devops-extravaganza)
 
 Vercel auto-detects the `vercel.json` and serves the repo root (where `index.html` lives) as a static site. Live in ~30 seconds.
 
 ### Option B — Local Python (no Docker)
 
 ```bash
-git clone https://github.com/creandotumatrix-labs/agentic-devops-extravaganza.git
+git clone https://github.com/adventurewave-labs/agentic-devops-extravaganza.git
 cd agentic-devops-extravaganza
 
 ./run.sh site       # serves the showcase page on http://localhost:8080

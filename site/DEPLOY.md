@@ -15,7 +15,7 @@ vercel --prod       # deploys to production
 
 ## Option B — GitHub + Vercel auto-deploy (recommended)
 
-1. Push the repo to GitHub (already done — `creandotumatrix-labs/agentic-devops-extravaganza`).
+1. Push the repo to GitHub (already done — `adventurewave-labs/agentic-devops-extravaganza`).
 2. Go to https://vercel.com/new
 3. Import the `agentic-devops-extravaganza` repo.
 4. Vercel auto-detects the `vercel.json` and serves the repo root.
@@ -26,7 +26,7 @@ vercel --prod       # deploys to production
 The landing page has a button that links to:
 
 ```
-https://vercel.com/new/clone?repository-url=https://github.com/creandotumatrix-labs/agentic-devops-extravaganza
+https://vercel.com/new/clone?repository-url=https://github.com/adventurewave-labs/agentic-devops-extravaganza
 ```
 
 This clones the repo into your GitHub and deploys it to your Vercel account in one click.
