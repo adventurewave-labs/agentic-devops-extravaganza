@@ -661,6 +661,7 @@ class MockK8sHandler(BaseHTTPRequestHandler):
     server_version = "MockKubeAPI/1.0"
     sys_version = "Python/3.12"
     protocol_version = "HTTP/1.1"  # support keep-alive
+    timeout = 30  # per-request timeout
 
     def _send_json(self, obj, code=200):
         body = json.dumps(obj).encode("utf-8")
@@ -668,6 +669,8 @@ class MockK8sHandler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Date", "Tue, 20 Aug 2026 04:00:00 GMT")
+        # Explicitly set Connection: close to avoid keep-alive weirdness
+        self.send_header("Connection", "close")
         self.end_headers()
         self.wfile.write(body)
 
@@ -684,6 +687,8 @@ class MockK8sHandler(BaseHTTPRequestHandler):
         try:
             self._route(path)
         except BrokenPipeError:
+            pass
+        except ConnectionResetError:
             pass
         except Exception as e:
             log(f"ERROR routing {path}: {e}")
@@ -983,20 +988,22 @@ class ResilientThreadingHTTPServer(ThreadingHTTPServer):
 
 
 def serve(port=8443, use_tls=True, certfile=None, keyfile=None):
+    # Auto-restart loop: if the server crashes (e.g. due to a broken
+    # TLS handshake from a misbehaving client), restart it within 1 second.
+    # This is what keeps the demo alive across multiple k8sgpt invocations.
     while True:
         try:
             httpd = ResilientThreadingHTTPServer(("127.0.0.1", port), MockK8sHandler)
             if use_tls and certfile and keyfile:
                 ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
                 ctx.load_cert_chain(certfile=certfile, keyfile=keyfile)
-                # Allow self-signed cert from client (kubectl/k8sgpt use --insecure-skip-tls-verify)
                 httpd.socket = ctx.wrap_socket(httpd.socket, server_side=True)
             log(f"Mock Kubernetes API listening on {'https' if use_tls else 'http'}://127.0.0.1:{port}")
             httpd.serve_forever()
         except KeyboardInterrupt:
             break
         except Exception as e:
-            log(f"Server crashed: {e} - restarting in 1s")
+            log(f"Server crashed: {type(e).__name__}: {e} - restarting in 1s")
             import time
             time.sleep(1)
 

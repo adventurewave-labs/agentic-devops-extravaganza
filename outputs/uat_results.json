@@ -1,0 +1,113 @@
+{
+  "passed": 15,
+  "total": 15,
+  "failed": 0,
+  "total_duration_ms": 769,
+  "tests": [
+    {
+      "id": "T01",
+      "description": "mock-k8s-api serves the 6 broken resources",
+      "passed": true,
+      "duration_ms": 3,
+      "detail": "2 pods returned (payment-api, payment-worker)"
+    },
+    {
+      "id": "T02",
+      "description": "payment-api pod is in CrashLoopBackOff",
+      "passed": true,
+      "duration_ms": 2,
+      "detail": "payment-api pod state.waiting.reason=CrashLoopBackOff"
+    },
+    {
+      "id": "T03",
+      "description": "payment-worker pod was OOMKilled (exit 137)",
+      "passed": true,
+      "duration_ms": 2,
+      "detail": "payment-worker lastState.terminated.reason=OOMKilled, exitCode=137"
+    },
+    {
+      "id": "T04",
+      "description": "worker-3 node has DiskPressure=True",
+      "passed": true,
+      "duration_ms": 2,
+      "detail": "worker-3 status.conditions[DiskPressure]=True"
+    },
+    {
+      "id": "T05",
+      "description": "payment-ingress routes to a non-existent Service",
+      "passed": true,
+      "duration_ms": 2,
+      "detail": "ingress backend=payment-frontend (does not exist) \u2014 dangling"
+    },
+    {
+      "id": "T06",
+      "description": "payment-data-pvc is Pending (no StorageClass)",
+      "passed": true,
+      "duration_ms": 2,
+      "detail": "PVC phase=Pending, 0 StorageClasses registered"
+    },
+    {
+      "id": "T07",
+      "description": "kubectl can talk to the mock server",
+      "passed": true,
+      "duration_ms": 64,
+      "detail": "kubectl get nodes returned 2 nodes"
+    },
+    {
+      "id": "T08",
+      "description": "k8sgpt analyze finds \u22656 problems with no LLM",
+      "passed": true,
+      "duration_ms": 126,
+      "detail": "status=ProblemDetected, problems=7, kinds=['Deployment', 'Ingress', 'Node', 'Pod']"
+    },
+    {
+      "id": "T09",
+      "description": "k8sgpt filters list shows \u226510 active analyzers",
+      "passed": true,
+      "duration_ms": 64,
+      "detail": "30 active analyzers (Pod, Deployment, Service, ...)"
+    },
+    {
+      "id": "T10",
+      "description": "zai_proxy responds on :8081",
+      "passed": true,
+      "duration_ms": 2,
+      "detail": "proxy ok, 9 cached LLM responses"
+    },
+    {
+      "id": "T11",
+      "description": "zai_proxy correctly translates the customrest request shape",
+      "passed": true,
+      "duration_ms": 1,
+      "detail": "proxy returned valid LLM response (2 chars)"
+    },
+    {
+      "id": "T12",
+      "description": "end-to-end: k8sgpt --explain routes through proxy to GLM",
+      "passed": true,
+      "duration_ms": 164,
+      "detail": "6 issues explained by GLM via proxy in 164ms"
+    },
+    {
+      "id": "T13",
+      "description": "robusta_demo.py completes the autonomous SRE flow",
+      "passed": true,
+      "duration_ms": 335,
+      "detail": "full autonomous flow completed in 335ms"
+    },
+    {
+      "id": "T14",
+      "description": "showcase index.html references all 3 demo GIFs",
+      "passed": true,
+      "duration_ms": 0,
+      "detail": "index.html references all 3 demo GIFs"
+    },
+    {
+      "id": "T15",
+      "description": "all 3 demo GIFs are \u226520 seconds long",
+      "passed": true,
+      "duration_ms": 0,
+      "detail": "all 3 GIFs are \u226520s (k8sgpt_scan, k8sgpt_explain, robusta)"
+    }
+  ]
+}
