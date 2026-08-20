@@ -4,13 +4,13 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-326ce5.svg)](LICENSE)
 [![K8sGPT: v0.4.36](https://img.shields.io/badge/K8sGPT-v0.4.36-00d9ff.svg)](https://github.com/k8sgpt-ai/k8sgpt)
 [![LLM: GLM-4.5](https://img.shields.io/badge/LLM-GLM--4.5-b388ff.svg)](https://z.ai)
-[![Demos: 3](https://img.shields.io/badge/Demos-3-ff7a3d.svg)](#-demos)
+[![Demos: 4](https://img.shields.io/badge/Demos-4-ff7a3d.svg)](#-demos)
 
 > A working, end-to-end demonstration of two open-source agentic AI tools for Kubernetes — **K8sGPT** and **Robusta** — running against a real Kubernetes API and a real LLM (GLM-4.5 via Z.AI).
 
 🌐 **Live landing page:** deploy this repo to Vercel — one-click button above, or see [`site/DEPLOY.md`](site/DEPLOY.md).
 
-![Agentic DevOps pipeline demos](gifs/k8sgpt_scan.gif)
+![Agentic DevOps 5-challenge cinematic demo](gifs/wow_demo.gif)
 
 ```
   Prometheus ──webhook──> Robusta ──HTTP──> Mock K8s API (payment-prod)
@@ -102,11 +102,12 @@ k8sgpt analyze \
 
 ## 🎬 Demos
 
-Three 25-second animated GIFs (committed in `gifs/`):
+Four animated GIFs (committed in `gifs/`):
 
-1. **`k8sgpt_scan.gif`** — k8sgpt finds 6 real issues in the broken cluster, no LLM
-2. **`k8sgpt_explain.gif`** — same scan, with GLM-4.5 explaining each finding step-by-step
-3. **`robusta.gif`** — Robusta receives a Prometheus alert, investigates the cluster, calls GLM, posts a Slack RCA card
+0. **`wow_demo.gif`** — the 30-second cinematic walkthrough: 5 challenges (blind triage → AI diagnosis → remediation → autonomous SRE → before/after dashboard). This is the one to watch first.
+1. **`k8sgpt_scan.gif`** — 25s: k8sgpt finds 6 real issues in the broken cluster, no LLM
+2. **`k8sgpt_explain.gif`** — 25s: same scan, with GLM-4.5 explaining each finding step-by-step
+3. **`robusta.gif`** — 25s: Robusta receives a Prometheus alert, investigates the cluster, calls GLM, posts a Slack RCA card
 
 Each GIF is rendered from an asciinema `.cast` file in `recordings/` via the `agg` binary. The displayed output is verbatim from the real binaries — no mocks, no edits.
 
@@ -148,10 +149,11 @@ LLM responses are cached to `captured/zai_cache.json` so re-runs are instant. De
 ```
 .
 ├── index.html                  # the showcase landing page (dark-themed, single file)
-├── gifs/                        # rendered GIFs (3 demos, ~25s each)
-│   ├── k8sgpt_scan.gif
-│   ├── k8sgpt_explain.gif
-│   └── robusta.gif
+├── gifs/                        # rendered GIFs (4 demos)
+│   ├── wow_demo.gif             # 30s cinematic 5-challenge walkthrough
+│   ├── k8sgpt_scan.gif          # 25s cluster triage
+│   ├── k8sgpt_explain.gif       # 25s AI diagnosis
+│   └── robusta.gif              # 25s autonomous SRE
 ├── scripts/                     # all source code
 │   ├── mock_k8s_server.py      # mock Kubernetes API server (HTTPS, ~1100 lines)
 │   ├── zai_proxy.py            # k8sgpt customrest → Z.AI GLM translation proxy

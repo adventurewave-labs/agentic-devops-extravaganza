@@ -99,13 +99,33 @@ cmd_record() {
   echo "=== Rebuilding asciinema casts + GIFs ==="
   cd "$ROOT"
   "$PY" scripts/build_casts.py all
-  for name in k8sgpt_scan k8sgpt_explain robusta; do
+  "$PY" scripts/build_wow_demo.py
+  for name in k8sgpt_scan k8sgpt_explain robusta wow_demo; do
     echo "  rendering $name.gif..."
     agg "recordings/$name.cast" "gifs/$name.gif" \
       --font-family "JetBrains Mono, DejaVu Sans Mono, monospace" \
       --theme monokai \
-      --idle-time-limit 30
+      --idle-time-limit 30 \
+      --font-size 13
   done
+  # Optimize the wow_demo gif (it's larger)
+  if [[ -f "$ROOT/gifs/wow_demo.gif" ]]; then
+    echo "  optimizing wow_demo.gif (downscale to 600px)..."
+    "$PY" -c "
+from PIL import Image, ImageSequence
+img = Image.open('$ROOT/gifs/wow_demo.gif')
+frames = []
+durations = []
+for frame in ImageSequence.Iterator(img):
+    f = frame.convert('P', palette=Image.ADAPTIVE, colors=128)
+    if f.size[0] > 600:
+        new_size = (600, int(f.size[1] * 600 / f.size[0]))
+        f = f.resize(new_size, Image.LANCZOS)
+    frames.append(f)
+    durations.append(frame.info.get('duration', 100))
+frames[0].save('$ROOT/gifs/wow_demo.gif', save_all=True, append_images=frames[1:], duration=durations, loop=0, optimize=True, disposal=2)
+"
+  fi
   echo ""
   echo "Done. New GIFs are in gifs/"
 }

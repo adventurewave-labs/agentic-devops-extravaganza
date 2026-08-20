@@ -1147,6 +1147,190 @@ pre .dim { color: var(--text-muted); }
 .qs-cmt { color: var(--text-muted); font-style: italic; }
 
 /* =====================================================================
+   WOW DEMO — the cinematic 5-challenge walkthrough
+   ===================================================================== */
+.wow-section {
+  background: linear-gradient(180deg, var(--bg-0) 0%, #0d0a1f 50%, var(--bg-0) 100%);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  position: relative;
+  overflow: hidden;
+}
+.wow-section::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 60% 40% at 50% 0%, rgba(0, 217, 255, 0.06), transparent 70%);
+  pointer-events: none;
+}
+.wow-header {
+  text-align: center;
+  margin-bottom: 48px;
+  position: relative;
+  z-index: 2;
+}
+.wow-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  background: linear-gradient(135deg, rgba(0, 217, 255, 0.1), rgba(179, 136, 255, 0.1));
+  border: 1px solid rgba(0, 217, 255, 0.3);
+  border-radius: 100px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--k8sgpt);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-bottom: 20px;
+}
+.wow-badge .dot {
+  width: 6px;
+  height: 6px;
+  background: var(--k8sgpt);
+  border-radius: 50%;
+  box-shadow: 0 0 8px var(--k8sgpt);
+  animation: pulse 2s ease-in-out infinite;
+}
+.wow-header h2 {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: clamp(32px, 5vw, 52px);
+  font-weight: 700;
+  color: var(--text-bright);
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  margin-bottom: 16px;
+}
+.wow-header h2 .gradient {
+  background: linear-gradient(135deg, #00d9ff 0%, #b388ff 50%, #ff7a3d 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.wow-header p {
+  font-size: 17px;
+  color: var(--text-dim);
+  max-width: 680px;
+  margin: 0 auto;
+}
+.wow-gif-container {
+  max-width: 920px;
+  margin: 0 auto;
+  position: relative;
+  z-index: 2;
+}
+.wow-gif-frame {
+  background: var(--code-bg);
+  border: 1px solid var(--border-strong);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.4),
+              0 0 80px rgba(0, 217, 255, 0.08);
+}
+.wow-gif-frame-header {
+  padding: 12px 20px;
+  background: rgba(255,255,255,0.03);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.wow-gif-frame-dots {
+  display: flex;
+  gap: 6px;
+}
+.wow-gif-frame-dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+}
+.wow-gif-frame-dot.r { background: #ff5f57; }
+.wow-gif-frame-dot.y { background: #febc2e; }
+.wow-gif-frame-dot.g { background: #28c840; }
+.wow-gif-frame-title {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  color: var(--text-dim);
+}
+.wow-gif-frame-tag {
+  margin-left: auto;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--glm);
+  padding: 4px 10px;
+  background: rgba(179, 136, 255, 0.1);
+  border: 1px solid rgba(179, 136, 255, 0.3);
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.wow-gif {
+  width: 100%;
+  height: auto;
+  display: block;
+  background: #0a0a0e;
+}
+.wow-challenges {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
+  margin-top: 32px;
+  position: relative;
+  z-index: 2;
+}
+@media (max-width: 900px) {
+  .wow-challenges { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 500px) {
+  .wow-challenges { grid-template-columns: 1fr; }
+}
+.wow-challenge {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  text-align: center;
+  transition: all 0.3s;
+}
+.wow-challenge:hover {
+  border-color: var(--k8sgpt);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 217, 255, 0.1);
+}
+.wow-challenge-num {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--k8sgpt);
+  letter-spacing: 0.1em;
+  margin-bottom: 8px;
+}
+.wow-challenge-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  margin: 0 auto 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 700;
+  font-size: 14px;
+  color: white;
+}
+.wow-challenge-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-bright);
+  margin-bottom: 4px;
+  font-family: 'Space Grotesk', sans-serif;
+}
+.wow-challenge-desc {
+  font-size: 11px;
+  color: var(--text-dim);
+  line-height: 1.4;
+}
+
+/* =====================================================================
    FOOTER
    ===================================================================== */
 .footer {
@@ -1481,6 +1665,7 @@ nav.topnav ul a:hover { color: var(--text-bright); }
       <span>agentic-devops</span>
     </a>
     <ul>
+      <li><a href="#wow-demo">★ Demo</a></li>
       <li><a href="#architecture">Architecture</a></li>
       <li><a href="#components">Components</a></li>
       <li><a href="#k8sgpt">K8sGPT</a></li>
@@ -1521,14 +1706,14 @@ nav.topnav ul a:hover { color: var(--text-bright); }
       no mocks, no screenshots, no BS.
     </p>
     <div class="hero-cta">
-      <a class="btn btn-primary" href="#k8sgpt">
-        <span>▶</span> Watch K8sGPT demo
+      <a class="btn btn-primary" href="#wow-demo">
+        <span>▶</span> Watch 5-challenge demo
       </a>
       <a class="btn btn-ghost" href="#architecture">
         Architecture
       </a>
-      <a class="btn btn-ghost" href="#robusta">
-        Robusta demo
+      <a class="btn btn-ghost" href="#uat">
+        UAT 15/15
       </a>
     </div>
     <div class="hero-deploy-row">
@@ -1561,6 +1746,77 @@ nav.topnav ul a:hover { color: var(--text-bright); }
     </div>
   </div>
   <div class="scroll-hint">↓ scroll to explore</div>
+</section>
+
+<!-- ===================================================================
+     WOW DEMO — the cinematic 5-challenge walkthrough
+     =================================================================== -->
+<section class="section wow-section" id="wow-demo">
+  <div class="container">
+    <div class="wow-header">
+      <div class="wow-badge">
+        <span class="dot"></span>
+        30-SECOND CINEMATIC DEMO
+      </div>
+      <h2>
+        <span class="gradient">5 challenges.</span><br>
+        0 humans.
+      </h2>
+      <p>
+        Watch the agentic loop fire end-to-end: k8sgpt finds 6 real issues blind,
+        GLM-4.5 explains each, kubectl fixes flow, Robusta runs autonomously, and a
+        before/after dashboard closes it out.
+      </p>
+    </div>
+
+    <div class="wow-gif-container">
+      <div class="wow-gif-frame">
+        <div class="wow-gif-frame-header">
+          <div class="wow-gif-frame-dots">
+            <span class="wow-gif-frame-dot r"></span>
+            <span class="wow-gif-frame-dot y"></span>
+            <span class="wow-gif-frame-dot g"></span>
+          </div>
+          <span class="wow-gif-frame-title">agentic-devops: ~/demo · 5 challenges in 30 seconds</span>
+          <span class="wow-gif-frame-tag">REAL LLM</span>
+        </div>
+        <img class="wow-gif" src="gifs/wow_demo.gif" alt="Agentic DevOps 5-challenge cinematic demo" loading="lazy">
+      </div>
+    </div>
+
+    <div class="wow-challenges">
+      <div class="wow-challenge">
+        <div class="wow-challenge-num">CHALLENGE 01</div>
+        <div class="wow-challenge-icon" style="background: linear-gradient(135deg, #326ce5, #5b9bff)">1</div>
+        <div class="wow-challenge-title">Blind Triage</div>
+        <div class="wow-challenge-desc">k8sgpt finds 6 issues in 98ms — no LLM consulted</div>
+      </div>
+      <div class="wow-challenge">
+        <div class="wow-challenge-num">CHALLENGE 02</div>
+        <div class="wow-challenge-icon" style="background: linear-gradient(135deg, #b388ff, #7c5cff)">2</div>
+        <div class="wow-challenge-title">AI Diagnosis</div>
+        <div class="wow-challenge-desc">GLM-4.5 explains each finding step-by-step</div>
+      </div>
+      <div class="wow-challenge">
+        <div class="wow-challenge-num">CHALLENGE 03</div>
+        <div class="wow-challenge-icon" style="background: linear-gradient(135deg, #00d9ff, #00ffa3)">3</div>
+        <div class="wow-challenge-title">Remediation</div>
+        <div class="wow-challenge-desc">Show the exact kubectl commands that fix each issue</div>
+      </div>
+      <div class="wow-challenge">
+        <div class="wow-challenge-num">CHALLENGE 04</div>
+        <div class="wow-challenge-icon" style="background: linear-gradient(135deg, #ff7a3d, #ff3d6e)">4</div>
+        <div class="wow-challenge-title">Autonomous SRE</div>
+        <div class="wow-challenge-desc">Robusta handles an alert end-to-end, no human in loop</div>
+      </div>
+      <div class="wow-challenge">
+        <div class="wow-challenge-num">CHALLENGE 05</div>
+        <div class="wow-challenge-icon" style="background: linear-gradient(135deg, #00ffa3, #00d9ff)">5</div>
+        <div class="wow-challenge-title">Before / After</div>
+        <div class="wow-challenge-desc">Animated metrics dashboard — Popeye F → A, 5xx 12% → 0.1%</div>
+      </div>
+    </div>
+  </div>
 </section>
 
 <!-- ===================================================================
