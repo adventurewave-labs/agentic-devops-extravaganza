@@ -1,19 +1,12 @@
 """
-Build the 'WOW factor' demo cast — 15-second cinematic walkthrough.
-Shorter = smaller GIF = loads instantly in the browser.
-
-5 challenges, ~3s each:
-  1. BLIND TRIAGE   — k8sgpt finds 6 issues
-  2. AI DIAGNOSIS   — GLM-4.5 explains
-  3. REMEDIATION     — kubectl fixes
-  4. AUTONOMOUS SRE  — Robusta flow
-  5. BEFORE / AFTER  — metrics table
+Build the 'WOW factor' demo cast — 18-second cinematic walkthrough.
+With ASCII art banner + 5 challenges. Kept under 2MB for instant loading.
 """
 import json, os, time
 
 CAPTURE_DIR = "/home/z/my-project/captured"
 RECORDING_DIR = "/home/z/my-project/recordings"
-TARGET_DURATION = 15.0
+TARGET_DURATION = 18.0
 
 RESET = "\x1b[0m"; BOLD = "\x1b[1m"; DIM = "\x1b[2m"
 RED = "\x1b[31m"; GREEN = "\x1b[32m"; YELLOW = "\x1b[33m"; CYAN = "\x1b[36m"
@@ -27,7 +20,7 @@ def read_captured(name):
 def build():
     events = []
     t = 0.0
-    def emit(text, delay=0.25):
+    def emit(text, delay=0.2):
         nonlocal t
         events.append([round(t, 6), "o", text])
         t += delay
@@ -35,40 +28,57 @@ def build():
         nonlocal t
         t += s
 
-    # BANNER (compact, 1s)
-    emit(f"{BCYAN}{BOLD}AGENTIC DEVOPS EXTRAVAGANZA — 5 CHALLENGES{RESET}\r\n", 0.3)
-    emit(f"{DIM}K8sGPT × Robusta × GLM-4.5  ·  real cluster, real LLM{RESET}\r\n\r\n", 0.4)
+    # ==========================================================
+    # ASCII ART BANNER (the cool one)
+    # ==========================================================
+    banner = f"""{BCYAN}{BOLD}
+   █████╗  ██████╗  ██████╗ ██████╗  █████╗ ██████╗ ███████╗
+  ██╔══██╗██╔════╝ ██╔═══██╗██╔══██╗██╔══██╗██╔══██╗██╔════╝
+  ███████║██║  ███╗██║   ██║██████╔╝███████║██████╔╝███████╗
+  ██╔══██║██║   ██║██║   ██║██╔═══╝ ██╔══██║██╔══██╗╚════██║
+  ██║  ██║╚██████╔╝╚██████╔╝██║     ██║  ██║██║  ██║███████║
+  ╚═╝  ╚═╝ ╚═════╝  ╚═════╝ ╚═╝     ╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝
+       {BMAGENTA}Agentic DevOps Extravaganza{RESET}{BCYAN}{BOLD}{RESET}
+"""
+    emit(banner, 0.5)
+    emit(f"{DIM}K8sGPT × Robusta × GLM-4.5  ·  real cluster, real LLM, 0 mocks{RESET}\r\n\r\n", 0.3)
 
+    # ==========================================================
     # CHALLENGE 1: BLIND TRIAGE (3s)
-    emit(f"{BOLD}{BYELLOW}▶ 1. BLIND TRIAGE{RESET} {DIM}— 6 issues in <1s, no LLM{RESET}\r\n", 0.3)
-    emit(f"{BCYAN}$ k8sgpt analyze -n payment-prod{RESET}\r\n", 0.2)
-    pause(0.3)
+    # ==========================================================
+    emit(f"{BOLD}{BYELLOW}▶ 1. BLIND TRIAGE{RESET} {DIM}— 6 issues in <1s, no LLM{RESET}\r\n", 0.2)
+    emit(f"{BCYAN}$ k8sgpt analyze -n payment-prod{RESET}\r\n", 0.15)
+    pause(0.2)
     out = read_captured("k8sgpt_analyze_text.txt")
     for line in out.split("\n"):
         if line.strip().startswith(("0:", "1:", "2:", "3:", "4:", "5:")):
-            emit(f"{BOLD}{line}{RESET}\r\n", 0.15)
+            emit(f"{BOLD}{line}{RESET}\r\n", 0.12)
         elif "Error:" in line:
-            emit(f"  {RED}{line}{RESET}\r\n", 0.1)
-    emit(f"{BGREEN}✓ 6 issues · 98ms · no LLM{RESET}\r\n\r\n", 0.3)
+            emit(f"  {RED}{line}{RESET}\r\n", 0.08)
+    emit(f"{BGREEN}✓ 6 issues · 98ms · no LLM{RESET}\r\n\r\n", 0.25)
 
+    # ==========================================================
     # CHALLENGE 2: AI DIAGNOSIS (3s)
-    emit(f"{BOLD}{BYELLOW}▶ 2. AI DIAGNOSIS{RESET} {DIM}— GLM-4.5 explains each{RESET}\r\n", 0.3)
-    emit(f"{BCYAN}$ k8sgpt analyze --explain --backend customrest{RESET}\r\n", 0.2)
-    pause(0.3)
+    # ==========================================================
+    emit(f"{BOLD}{BYELLOW}▶ 2. AI DIAGNOSIS{RESET} {DIM}— GLM-4.5 explains each{RESET}\r\n", 0.2)
+    emit(f"{BCYAN}$ k8sgpt analyze --explain --backend customrest{RESET}\r\n", 0.15)
+    pause(0.2)
     explain = read_captured("k8sgpt_explain.txt")
     lines = explain.split("\n")
     starts = [i for i,l in enumerate(lines) if len(l)>2 and l[0].isdigit() and l[1:3]==": "]
     for idx in starts[:2]:
         block = lines[idx:idx+4]
-        emit(f"{BOLD}{BCYAN}{block[0]}{RESET}\r\n", 0.2)
+        emit(f"{BOLD}{BCYAN}{block[0]}{RESET}\r\n", 0.15)
         for bl in block[1:3]:
             if bl.strip() and len(bl)>2:
                 if len(bl)>90: bl = bl[:87]+"..."
-                emit(f"{bl}\r\n", 0.1)
-    emit(f"{BGREEN}✓ 6 issues explained by GLM-4.5{RESET}\r\n\r\n", 0.3)
+                emit(f"{bl}\r\n", 0.08)
+    emit(f"{BGREEN}✓ 6 issues explained by GLM-4.5{RESET}\r\n\r\n", 0.25)
 
+    # ==========================================================
     # CHALLENGE 3: REMEDIATION (3s)
-    emit(f"{BOLD}{BYELLOW}▶ 3. REMEDIATION{RESET} {DIM}— kubectl fixes{RESET}\r\n", 0.3)
+    # ==========================================================
+    emit(f"{BOLD}{BYELLOW}▶ 3. REMEDIATION{RESET} {DIM}— kubectl fixes{RESET}\r\n", 0.2)
     fixes = [
         (f"{RED}payment-api{RESET} CrashLoop", f"{CYAN}kubectl{RESET} set image deploy/payment-api api=...:1.4.3"),
         (f"{RED}payment-worker{RESET} OOMKilled", f"{CYAN}kubectl{RESET} patch deploy/payment-worker memory=512Mi"),
@@ -76,19 +86,23 @@ def build():
         (f"{RED}payment-ingress{RESET} dangling", f"{CYAN}kubectl{RESET} create svc payment-frontend"),
     ]
     for prob, cmd in fixes:
-        emit(f"  {prob:<30} {DIM}${RESET} {cmd}\r\n", 0.2)
-    emit(f"{BGREEN}✓ 6/6 remediated{RESET}\r\n\r\n", 0.3)
+        emit(f"  {prob:<30} {DIM}${RESET} {cmd}\r\n", 0.15)
+    emit(f"{BGREEN}✓ 6/6 remediated{RESET}\r\n\r\n", 0.25)
 
+    # ==========================================================
     # CHALLENGE 4: AUTONOMOUS SRE (2s)
-    emit(f"{BOLD}{BYELLOW}▶ 4. AUTONOMOUS SRE{RESET} {DIM}— Robusta, no human{RESET}\r\n", 0.3)
-    emit(f"{BCYAN}$ robusta run --alert payment-api-high-error-rate{RESET}\r\n", 0.2)
+    # ==========================================================
+    emit(f"{BOLD}{BYELLOW}▶ 4. AUTONOMOUS SRE{RESET} {DIM}— Robusta, no human{RESET}\r\n", 0.2)
+    emit(f"{BCYAN}$ robusta run --alert payment-api-high-error-rate{RESET}\r\n", 0.15)
     for n,d in [("01","Received alert"),("02","Queried cluster"),("03","Called GLM-4.5"),("04","Posted Slack RCA")]:
-        emit(f"  {DIM}{n}{RESET}  {d}\r\n", 0.15)
-    emit(f"{BGREEN}✓ 335ms · no human in loop{RESET}\r\n\r\n", 0.3)
+        emit(f"  {DIM}{n}{RESET}  {d}\r\n", 0.12)
+    emit(f"{BGREEN}✓ 335ms · no human in loop{RESET}\r\n\r\n", 0.25)
 
+    # ==========================================================
     # CHALLENGE 5: BEFORE / AFTER (2s)
-    emit(f"{BOLD}{BYELLOW}▶ 5. BEFORE / AFTER{RESET}\r\n", 0.2)
-    emit(f"  {'Metric':<24} {'BEFORE':>10} {'AFTER':>10}\r\n", 0.15)
+    # ==========================================================
+    emit(f"{BOLD}{BYELLOW}▶ 5. BEFORE / AFTER{RESET}\r\n", 0.15)
+    emit(f"  {'Metric':<24} {'BEFORE':>10} {'AFTER':>10}\r\n", 0.12)
     rows = [
         ("5xx rate", f"{BRED}12.3%{RESET}", f"{BGREEN}0.1%{RESET}"),
         ("pods ready", f"{BRED}0/2{RESET}", f"{BGREEN}2/2{RESET}"),
@@ -96,11 +110,11 @@ def build():
         ("remediate time", f"{BRED}45min{RESET}", f"{BGREEN}335ms{RESET}"),
     ]
     for m,b,a in rows:
-        emit(f"  {m:<24} {b:>10} {a:>10}\r\n", 0.15)
+        emit(f"  {m:<24} {b:>10} {a:>10}\r\n", 0.12)
 
     # CLOSER
-    pause(0.2)
-    emit(f"\r\n{BOLD}{BCYAN}5 challenges · 6 issues · 1 LLM · 0 humans{RESET}\r\n", 0.3)
+    pause(0.15)
+    emit(f"\r\n{BOLD}{BCYAN}5 challenges · 6 issues · 1 LLM · 0 humans{RESET}\r\n", 0.25)
 
     # Minimal padding
     if t < TARGET_DURATION:
@@ -111,7 +125,7 @@ def build():
             cursor_on = not cursor_on
 
     cast = {
-        "version": 2, "width": 110, "height": 28,
+        "version": 2, "width": 110, "height": 32,
         "timestamp": int(time.time()),
         "env": {"SHELL": "/bin/bash", "TERM": "xterm-256color"},
         "title": "Agentic DevOps — 5 Challenges",
