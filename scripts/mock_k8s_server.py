@@ -989,9 +989,26 @@ class ResilientThreadingHTTPServer(ThreadingHTTPServer):
 
 def serve(port=8443, use_tls=True, certfile=None, keyfile=None):
     # Auto-restart loop: if the server crashes (e.g. due to a broken
-    # TLS handshake from a misbehaving client), restart it within 1 second.
-    # This is what keeps the demo alive across multiple k8sgpt invocations.
+    # TLS handshake from a misbehaving client), restart it.
+    # On each restart, wait for the port to be free before retrying.
+    import time as _time
+
+    # Validate cert files exist BEFORE entering the loop, so we don't
+    # spin forever on a missing-file error.
+    if use_tls:
+        if not certfile or not os.path.exists(certfile):
+            log(f"ERROR: cert file not found: {certfile}")
+            log(f"  Set K8S_MOCK_CERT env var or mount the file.")
+            sys.exit(1)
+        if not keyfile or not os.path.exists(keyfile):
+            log(f"ERROR: key file not found: {keyfile}")
+            log(f"  Set K8S_MOCK_KEY env var or mount the file.")
+            sys.exit(1)
+        log(f"Using cert: {certfile}")
+        log(f"Using key:  {keyfile}")
+
     while True:
+        httpd = None
         try:
             httpd = ResilientThreadingHTTPServer(("127.0.0.1", port), MockK8sHandler)
             if use_tls and certfile and keyfile:
@@ -1003,17 +1020,50 @@ def serve(port=8443, use_tls=True, certfile=None, keyfile=None):
         except KeyboardInterrupt:
             break
         except Exception as e:
-            log(f"Server crashed: {type(e).__name__}: {e} - restarting in 1s")
-            import time
-            time.sleep(1)
+            log(f"Server crashed: {type(e).__name__}: {e} - restarting in 2s")
+        finally:
+            # ALWAYS close the server on crash/exit so the port is released
+            if httpd is not None:
+                try:
+                    httpd.server_close()
+                except Exception:
+                    pass
+        _time.sleep(2)
 
 
 if __name__ == "__main__":
     import sys
     port = int(sys.argv[1]) if len(sys.argv) > 1 else 8443
     use_tls = "--no-tls" not in sys.argv
-    certfile = os.environ.get("K8S_MOCK_CERT", "/home/z/my-project/mock-k8s/cert.pem")
-    keyfile = os.environ.get("K8S_MOCK_KEY", "/home/z/my-project/mock-k8s/key.pem")
+
+    # Auto-detect cert path: check multiple locations so the script works
+    # both in the dev environment (/home/z/my-project/mock-k8s/) and
+    # inside Docker (/app/mock-k8s/).
+    _cert_candidates = [
+        os.environ.get("K8S_MOCK_CERT"),
+        "/app/mock-k8s/cert.pem",
+        "/home/z/my-project/mock-k8s/cert.pem",
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "mock-k8s", "cert.pem"),
+    ]
+    _key_candidates = [
+        os.environ.get("K8S_MOCK_KEY"),
+        "/app/mock-k8s/key.pem",
+        "/home/z/my-project/mock-k8s/key.pem",
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "mock-k8s", "key.pem"),
+    ]
+    certfile = next((c for c in _cert_candidates if c and os.path.exists(c)), None)
+    keyfile = next((k for k in _key_candidates if k and os.path.exists(k)), None)
+
+    if use_tls and not certfile:
+        log("ERROR: cert.pem not found in any of the expected locations:")
+        for c in _cert_candidates:
+            log(f"  - {c}")
+        log("  Run scripts/gen_cert.sh to generate one, or set K8S_MOCK_CERT env var.")
+        sys.exit(1)
+    if use_tls and not keyfile:
+        log("ERROR: key.pem not found. Run scripts/gen_cert.sh or set K8S_MOCK_KEY.")
+        sys.exit(1)
+
     if not use_tls:
         certfile = keyfile = None
     serve(port, use_tls, certfile, keyfile)

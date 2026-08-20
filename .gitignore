@@ -27,9 +27,10 @@ upload/
 # Binaries downloaded for local testing (not part of source)
 bin/
 
-# Generated certs (regenerated at build/runtime)
-mock-k8s/cert.pem
-mock-k8s/key.pem
+# Generated certs (regenerated at build/runtime via scripts/gen_cert.sh)
+# But we DO commit a default pair so the repo works out-of-the-box.
+# mock-k8s/cert.pem
+# mock-k8s/key.pem
 
 # Tool output scratch
 tool-results/
