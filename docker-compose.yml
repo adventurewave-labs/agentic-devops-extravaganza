@@ -1,18 +1,27 @@
 # Agentic DevOps Extravaganza — docker-compose
 #
-# Three run modes:
+# Five run modes:
 #
-#   1) site   — just the static showcase page on :8080
-#   2) demo   — site + mock K8s API on :8443 + Z.AI proxy on :8081
-#   3) full   — demo + the robusta autonomous SRE flow (one-shot)
+#   1) site     — just the static showcase page on :8080
+#   2) demo     — site + mock K8s API :8443 + Z.AI proxy :8081 + k8sgpt installed
+#   3) scan     — one-shot: start mock K8s, run k8sgpt analyze (no LLM)
+#   4) explain  — one-shot: start mock K8s + proxy, run k8sgpt --explain (GLM-4.5)
+#   5) robusta  — one-shot: start mock K8s + proxy, run Robusta autonomous SRE flow
+#   6) uat      — one-shot: run the 15-test acceptance matrix
 #
 # Usage:
-#   docker compose up site          # static site only
-#   docker compose up demo          # full stack
-#   docker compose run robusta      # run the robusta demo once
+#   docker compose up site             # static site only
+#   docker compose up demo             # full stack (stays running)
+#   docker compose run --rm scan       # one-shot k8sgpt scan
+#   docker compose run --rm explain    # one-shot k8sgpt --explain
+#   docker compose run --rm robusta    # one-shot Robusta flow
+#   docker compose run --rm uat        # one-shot UAT matrix
 #
 # To use the Z.AI proxy (real LLM calls), drop your .z-ai-config at the
 # repo root and docker compose will mount it read-only.
+# Format:
+#   {"baseUrl":"https://internal-api.z.ai/v1","apiKey":"Z.ai",
+#    "chatId":"<your-chat-id>","token":"<your-jwt>","userId":"<your-user-id>"}
 
 services:
 
@@ -34,6 +43,8 @@ services:
       - "8081:8081"
     volumes:
       # Mount your Z.AI config read-only. See README for format.
+      # If this file doesn't exist, the proxy won't start but the
+      # mock K8s + site will still work.
       - ./.z-ai-config:/run/secrets/zai-config:ro
     command: ["demo"]
     restart: unless-stopped
@@ -43,6 +54,25 @@ services:
       timeout: 3s
       retries: 6
 
+  # One-shot: k8sgpt analyze (no LLM, just the 6 findings)
+  scan:
+    build: .
+    image: agentic-devops-extravaganza:latest
+    container_name: agentic-devops-scan
+    command: ["scan"]
+    restart: "no"
+
+  # One-shot: k8sgpt analyze --explain (with GLM-4.5 via proxy)
+  explain:
+    build: .
+    image: agentic-devops-extravaganza:latest
+    container_name: agentic-devops-explain
+    volumes:
+      - ./.z-ai-config:/run/secrets/zai-config:ro
+    command: ["explain"]
+    restart: "no"
+
+  # One-shot: Robusta autonomous SRE flow
   robusta:
     build: .
     image: agentic-devops-extravaganza:latest
@@ -50,4 +80,14 @@ services:
     volumes:
       - ./.z-ai-config:/run/secrets/zai-config:ro
     command: ["robusta"]
+    restart: "no"
+
+  # One-shot: 15-test UAT matrix
+  uat:
+    build: .
+    image: agentic-devops-extravaganza:latest
+    container_name: agentic-devops-uat
+    volumes:
+      - ./.z-ai-config:/run/secrets/zai-config:ro
+    command: ["uat"]
     restart: "no"

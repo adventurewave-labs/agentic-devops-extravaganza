@@ -65,13 +65,37 @@ cd agentic-devops-extravaganza
 
 ### Option C — Docker
 
+The Dockerfile installs **real binaries**: k8sgpt v0.4.36 and kubectl v1.30.0.
+Pre-configures the k8sgpt customrest backend to point at the Z.AI proxy.
+
 ```bash
 # Just the static site
 docker compose up site
 
-# Full demo stack (mock K8s + Z.AI proxy + site)
+# Full demo stack (mock K8s + Z.AI proxy + site + k8sgpt installed)
 # Requires a .z-ai-config file at repo root — see "Z.AI credentials" below
 docker compose up demo
+
+# One-shot: k8sgpt analyze (no LLM, just 6 findings)
+docker compose run --rm scan
+
+# One-shot: k8sgpt analyze --explain (with GLM-4.5)
+docker compose run --rm explain
+
+# One-shot: Robusta autonomous SRE flow
+docker compose run --rm robusta
+
+# One-shot: 15-test UAT matrix
+docker compose run --rm uat
+```
+
+Inside the `demo` container, k8sgpt is on PATH and pre-configured:
+
+```bash
+docker compose exec demo k8sgpt analyze \
+  --kubeconfig /app/mock-k8s/kubeconfig.yaml \
+  --kubecontext mock-context -n payment-prod \
+  --explain --backend customrest
 ```
 
 ### Run k8sgpt yourself
