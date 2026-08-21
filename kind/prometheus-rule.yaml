@@ -1,0 +1,31 @@
+# A real PrometheusRule. `make kind-fire-alert` scales payment-api to a
+# replica count that cannot become ready, which makes this expression true and
+# Prometheus fire the alert into Alertmanager and on to Robusta.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: payment-api-alerts
+  namespace: default
+  labels:
+    release: robusta
+spec:
+  groups:
+    - name: payment-prod.rules
+      rules:
+        - alert: PaymentAPIHighErrorRate
+          # Fires when the payment-api Deployment has unavailable replicas —
+          # a real signal from kube-state-metrics, not a synthetic one.
+          expr: |
+            kube_deployment_status_replicas_unavailable{deployment="payment-api",namespace="payment-prod"} > 0
+          for: 1m
+          labels:
+            severity: critical
+            namespace: payment-prod
+            service: payment-api
+          annotations:
+            summary: "Payment API has unavailable replicas"
+            description: >-
+              payment-api in payment-prod has
+              {{ $value }} unavailable replica(s). The Deployment cannot reach
+              minimum availability.
+            runbook_url: "https://github.com/adventurewave-labs/agentic-devops-extravaganza#remediation"

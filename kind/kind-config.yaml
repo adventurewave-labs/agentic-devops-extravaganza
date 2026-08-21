@@ -1,0 +1,20 @@
+# A 3-node kind cluster: one control-plane, two workers. `worker-3` in the
+# mock maps to the second worker here (kind names them kind-worker,
+# kind-worker2), which is why the kind manifests target kind-worker2.
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: agentic-devops
+nodes:
+  - role: control-plane
+    kubeadmConfigPatches:
+      - |
+        kind: InitConfiguration
+        nodeRegistration:
+          kubeletExtraArgs:
+            node-labels: "ingress-ready=true"
+    extraPortMappings:
+      - containerPort: 80
+        hostPort: 8000
+        protocol: TCP
+  - role: worker
+  - role: worker
