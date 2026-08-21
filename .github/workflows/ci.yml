@@ -77,7 +77,7 @@ jobs:
           KUBECONFIG: ${{ github.workspace }}/mock-k8s/kubeconfig.yaml
           KUBE_CONTEXT: mock-context
         run: |
-          ./scripts/remediate.sh
+          bash ./scripts/remediate.sh
           ./run.sh scan | tee /tmp/after.txt || true
           count=$(grep -cE '^[0-9]+: ' /tmp/after.txt || true)
           echo "findings after remediation: $count"
