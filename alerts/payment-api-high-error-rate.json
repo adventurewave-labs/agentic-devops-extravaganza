@@ -1,0 +1,41 @@
+{
+  "version": "4",
+  "groupKey": "{}:{alertname=\"PaymentAPIHighErrorRate\"}",
+  "status": "firing",
+  "receiver": "robusta",
+  "groupLabels": {
+    "alertname": "PaymentAPIHighErrorRate"
+  },
+  "commonLabels": {
+    "alertname": "PaymentAPIHighErrorRate",
+    "severity": "critical",
+    "namespace": "payment-prod",
+    "service": "payment-api"
+  },
+  "commonAnnotations": {
+    "summary": "Payment API error rate above 5% for 5 minutes",
+    "description": "Payment API is returning 5xx errors to 12.4% of requests. Threshold: 5%. The service has been erroring since the last deployment (payment-api rev 3) 28 minutes ago.",
+    "runbook_url": "https://runbooks.internal.acme.io/payment-api-high-error-rate"
+  },
+  "externalURL": "https://prometheus.internal.acme.io/alertmanager",
+  "alerts": [
+    {
+      "status": "firing",
+      "labels": {
+        "alertname": "PaymentAPIHighErrorRate",
+        "severity": "critical",
+        "namespace": "payment-prod",
+        "service": "payment-api",
+        "pod": "payment-api-7c4f5b-x9qkl"
+      },
+      "annotations": {
+        "summary": "Payment API error rate above 5% for 5 minutes",
+        "description": "Payment API is returning 5xx errors to 12.4% of requests. Threshold: 5%. The service has been erroring since the last deployment (payment-api rev 3) 28 minutes ago."
+      },
+      "startsAt": "2026-08-20T03:42:00Z",
+      "endsAt": "0001-01-01T00:00:00Z",
+      "generatorURL": "https://prometheus.internal.acme.io/graph?g0.expr=sum(rate(http_requests_total%7Bservice%3D%22payment-api%22%2Cstatus%3D~%225..%22%7D%5B5m%5D))",
+      "fingerprint": "f1a2b3c4d5e6f7a8"
+    }
+  ]
+}
