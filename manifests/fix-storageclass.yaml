@@ -1,0 +1,9 @@
+# The PVC payment-data-pvc requests StorageClass "standard", which was deleted
+# from the cluster. Recreating it lets the PVC bind.
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: standard
+provisioner: rancher.io/local-path
+reclaimPolicy: Delete
+volumeBindingMode: Immediate
