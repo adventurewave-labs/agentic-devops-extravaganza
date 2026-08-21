@@ -4,33 +4,28 @@ __pycache__/
 .venv/
 venv/
 
-# AOPS runtime artifacts
+# Runtime artifacts
 var/
 *.log
 *.pid
 
-# Editor
+# Editor / OS
 .vscode/
 .idea/
 *.swp
-
-# OS
 .DS_Store
 Thumbs.db
 
-# Secrets (NEVER commit)
+# Secrets — never commit
+.llm-config
 .z-ai-config
 *.token
 .env
-upload/
 
-# Binaries downloaded for local testing (not part of source)
+# Locally downloaded binaries
 bin/
 
-# Generated certs (regenerated at build/runtime via scripts/gen_cert.sh)
-# But we DO commit a default pair so the repo works out-of-the-box.
-# mock-k8s/cert.pem
-# mock-k8s/key.pem
-
-# Tool output scratch
-tool-results/
+# TLS material: the cert is regenerated on first boot by mock_k8s_server.py,
+# and a private key has no business in a public repo.
+mock-k8s/cert.pem
+mock-k8s/key.pem

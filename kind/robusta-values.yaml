@@ -1,0 +1,74 @@
+# Real Robusta, installed by Helm into the kind cluster.
+#
+# This is the actual robusta-dev/robusta chart — not a re-implementation.
+# `make kind-robusta` installs it, `make kind-fire-alert` makes Prometheus
+# fire a real alert at it, and `make kind-findings` shows what Robusta did.
+#
+# Docs: https://docs.robusta.dev/master/configuration/index.html
+
+clusterName: agentic-devops-kind
+
+# Robusta ships kube-prometheus-stack so the alert path is genuinely
+# Prometheus -> Alertmanager -> Robusta, not a curl at a webhook.
+enablePrometheusStack: true
+enablePlatformPlaybooks: false
+disableCloudRouting: true
+
+globalConfig:
+  # Robusta signs its own webhook calls; grafana/prometheus URLs are optional.
+  check_prometheus_flags: false
+
+sinksConfig:
+  # Default sink: findings land in the runner's log, so the demo works with
+  # zero credentials. Uncomment the Slack sink and set the token to post for
+  # real -- nothing here posts anywhere unless you configure it.
+  - robusta_logs_sink:
+      name: logs_sink
+  # - slack_sink:
+  #     name: slack_sink
+  #     slack_channel: sre-incidents
+  #     api_key: <your-slack-bot-token>
+
+customPlaybooks:
+  # When PaymentAPIHighErrorRate fires, enrich the finding with the same
+  # context our reference agent gathers: pod status, events, logs, and the
+  # owning Deployment.
+  - triggers:
+      - on_prometheus_alert:
+          alert_name: PaymentAPIHighErrorRate
+    actions:
+      - alert_definition_enricher: {}
+      - pod_events_enricher: {}
+      - logs_enricher:
+          filter_regex: ".*"
+      - related_pods: {}
+      - resource_events_enricher:
+          max_events: 20
+
+  # Crashing pods anywhere in payment-prod get the same treatment, which is
+  # what surfaces payment-api and payment-worker without any alert at all.
+  - triggers:
+      - on_pod_crash_loop:
+          restart_reason: "CrashLoopBackOff"
+          namespace: payment-prod
+    actions:
+      - report_crash_loop: {}
+      - logs_enricher: {}
+
+  - triggers:
+      - on_pod_oom_killed:
+          namespace: payment-prod
+    actions:
+      - pod_oom_killer_enricher: {}
+      - oomkilled_container_graph_enricher:
+          resource_type: Memory
+
+# HolmesGPT (Robusta's AI investigator) is opt-in and needs a model key.
+# Left off by default so the demo runs credential-free; turn it on to get
+# LLM root-cause analysis from Robusta itself rather than from our script.
+enableHolmesGPT: false
+# holmes:
+#   additionalEnvVars:
+#     - name: OPENAI_API_KEY
+#       valueFrom:
+#         secretKeyRef: {name: holmes-secrets, key: openai-api-key}

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Agentic DevOps Extravaganza — K8sGPT × Robusta × GLM</title>
+<title>Agentic DevOps Extravaganza — K8sGPT × Robusta × LLM</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -44,7 +44,7 @@ body {
   --k8sgpt: #00d9ff;         /* cyan for k8sgpt */
   --robusta: #ff7a3d;        /* orange for robusta */
   --robusta-bright: #ffac6b;
-  --glm: #b388ff;            /* purple for GLM */
+  --glm: #b388ff;            /* purple for the LLM layer */
   --critical: #ff3d6e;
   --warn: #ffb53d;
   --ok: #00ffa3;
@@ -1665,7 +1665,7 @@ nav.topnav ul a:hover { color: var(--text-bright); }
       <span>agentic-devops</span>
     </a>
     <ul>
-      <li><a href="#wow-demo">★ Demo</a></li>
+      <li><a href="#remediate-demo">★ Demo</a></li>
       <li><a href="#architecture">Architecture</a></li>
       <li><a href="#components">Components</a></li>
       <li><a href="#k8sgpt">K8sGPT</a></li>
@@ -1693,7 +1693,7 @@ nav.topnav ul a:hover { color: var(--text-bright); }
   <div class="hero-content">
     <div class="hero-badge">
       <span class="dot"></span>
-      LIVE DEMO · REAL KUBERNETES · REAL LLM
+      REAL BINARIES · SIMULATED CLUSTER · PLUGGABLE LLM
     </div>
     <h1>
       Agentic DevOps,<br>
@@ -1701,19 +1701,20 @@ nav.topnav ul a:hover { color: var(--text-bright); }
     </h1>
     <p>
       A working, end-to-end demonstration of <strong>two open-source agentic AI tools</strong>
-      running against a real Kubernetes API and a real LLM. K8sGPT diagnoses cluster state,
-      Robusta investigates alerts, and GLM&nbsp;4.5 generates the root-cause analysis —
-      no mocks, no screenshots, no BS.
+      for Kubernetes. The real <span class="mono">k8sgpt</span> and <span class="mono">kubectl</span>
+      binaries run against a <strong>mock Kubernetes API server</strong> faithful enough that they
+      can't tell the difference: simulated cluster, real binaries, real writes. An optional LLM
+      backend writes the root-cause analysis, and every command on this page is one you can run.
     </p>
     <div class="hero-cta">
-      <a class="btn btn-primary" href="#wow-demo">
-        <span>▶</span> Watch 5-challenge demo
+      <a class="btn btn-primary" href="#remediate-demo">
+        <span>▶</span> Watch the remediation demo
       </a>
       <a class="btn btn-ghost" href="#architecture">
         Architecture
       </a>
       <a class="btn btn-ghost" href="#uat">
-        UAT 15/15
+        Acceptance suite
       </a>
     </div>
     <div class="hero-deploy-row">
@@ -1732,16 +1733,16 @@ nav.topnav ul a:hover { color: var(--text-bright); }
         <span class="stat-label">Open-source agents</span>
       </div>
       <div class="stat">
-        <span class="stat-num">6</span>
-        <span class="stat-label">Real K8s issues found</span>
+        <span class="stat-num">8</span>
+        <span class="stat-label">k8sgpt findings</span>
       </div>
       <div class="stat">
-        <span class="stat-num">15/15</span>
-        <span class="stat-label">UAT tests pass</span>
+        <span class="stat-num">0</span>
+        <span class="stat-label">Left after remediation</span>
       </div>
       <div class="stat">
-        <span class="stat-num">769ms</span>
-        <span class="stat-label">Total test latency</span>
+        <span class="stat-num">4</span>
+        <span class="stat-label">Live-recorded demos</span>
       </div>
     </div>
   </div>
@@ -1749,23 +1750,28 @@ nav.topnav ul a:hover { color: var(--text-bright); }
 </section>
 
 <!-- ===================================================================
-     WOW DEMO — the cinematic 5-challenge walkthrough
+     REMEDIATION DEMO — 8 findings driven to 0 with real kubectl writes
      =================================================================== -->
-<section class="section wow-section" id="wow-demo">
+<section class="section wow-section" id="remediate-demo">
   <div class="container">
     <div class="wow-header">
       <div class="wow-badge">
         <span class="dot"></span>
-        30-SECOND CINEMATIC DEMO
+        RECORDED LIVE · REAL kubectl WRITES
       </div>
       <h2>
-        <span class="gradient">5 challenges.</span><br>
-        0 humans.
+        <span class="gradient">8 findings.</span><br>
+        Then 0.
       </h2>
       <p>
-        Watch the agentic loop fire end-to-end: k8sgpt finds 6 real issues blind,
-        GLM-4.5 explains each, kubectl fixes flow, Robusta runs autonomously, and a
-        before/after dashboard closes it out.
+        Real <span class="mono">kubectl</span> remediation, end to end. k8sgpt reports 8 findings
+        against the simulated <span class="mono">payment-prod</span> cluster,
+        <span class="mono">scripts/remediate.sh</span> applies real writes through the Kubernetes
+        API — <span class="mono">set image</span>, <span class="mono">patch</span>,
+        <span class="mono">cordon</span>, <span class="mono">drain</span>,
+        <span class="mono">create service</span>, <span class="mono">apply</span> — and the same
+        scan comes back with 0. Nothing is replayed: the mock reconciles the writes and k8sgpt
+        re-derives the result.
       </p>
     </div>
 
@@ -1777,43 +1783,43 @@ nav.topnav ul a:hover { color: var(--text-bright); }
             <span class="wow-gif-frame-dot y"></span>
             <span class="wow-gif-frame-dot g"></span>
           </div>
-          <span class="wow-gif-frame-title">agentic-devops: ~/demo · 5 challenges in 30 seconds</span>
-          <span class="wow-gif-frame-tag">REAL LLM</span>
+          <span class="wow-gif-frame-title">agentic-devops: ~/demo · ./run.sh remediate</span>
+          <span class="wow-gif-frame-tag">LIVE RECORDING</span>
         </div>
-        <img class="wow-gif" src="gifs/wow_demo.gif" alt="Agentic DevOps 5-challenge cinematic demo" loading="lazy">
+        <img class="wow-gif" src="gifs/remediate.gif" alt="Real kubectl remediation: 8 k8sgpt findings driven to 0" loading="lazy">
       </div>
     </div>
 
     <div class="wow-challenges">
       <div class="wow-challenge">
-        <div class="wow-challenge-num">CHALLENGE 01</div>
+        <div class="wow-challenge-num">K8SGPT</div>
         <div class="wow-challenge-icon" style="background: linear-gradient(135deg, #326ce5, #5b9bff)">1</div>
-        <div class="wow-challenge-title">Blind Triage</div>
-        <div class="wow-challenge-desc">k8sgpt finds 6 issues in 98ms — no LLM consulted</div>
+        <div class="wow-challenge-title">Findings</div>
+        <div class="wow-challenge-desc">8 → 0 (same command, before and after)</div>
       </div>
       <div class="wow-challenge">
-        <div class="wow-challenge-num">CHALLENGE 02</div>
+        <div class="wow-challenge-num">/_DEMO/HEALTH</div>
         <div class="wow-challenge-icon" style="background: linear-gradient(135deg, #b388ff, #7c5cff)">2</div>
-        <div class="wow-challenge-title">AI Diagnosis</div>
-        <div class="wow-challenge-desc">GLM-4.5 explains each finding step-by-step</div>
+        <div class="wow-challenge-title">Pods ready</div>
+        <div class="wow-challenge-desc">0/2 → 2/2</div>
       </div>
       <div class="wow-challenge">
-        <div class="wow-challenge-num">CHALLENGE 03</div>
+        <div class="wow-challenge-num">/_DEMO/HEALTH</div>
         <div class="wow-challenge-icon" style="background: linear-gradient(135deg, #00d9ff, #00ffa3)">3</div>
-        <div class="wow-challenge-title">Remediation</div>
-        <div class="wow-challenge-desc">Show the exact kubectl commands that fix each issue</div>
+        <div class="wow-challenge-title">Deployments available</div>
+        <div class="wow-challenge-desc">0/2 → 2/2</div>
       </div>
       <div class="wow-challenge">
-        <div class="wow-challenge-num">CHALLENGE 04</div>
+        <div class="wow-challenge-num">/_DEMO/HEALTH</div>
         <div class="wow-challenge-icon" style="background: linear-gradient(135deg, #ff7a3d, #ff3d6e)">4</div>
-        <div class="wow-challenge-title">Autonomous SRE</div>
-        <div class="wow-challenge-desc">Robusta handles an alert end-to-end, no human in loop</div>
+        <div class="wow-challenge-title">worker-3 DiskPressure</div>
+        <div class="wow-challenge-desc">True → False (cordon + drain)</div>
       </div>
       <div class="wow-challenge">
-        <div class="wow-challenge-num">CHALLENGE 05</div>
+        <div class="wow-challenge-num">/_DEMO/HEALTH</div>
         <div class="wow-challenge-icon" style="background: linear-gradient(135deg, #00ffa3, #00d9ff)">5</div>
-        <div class="wow-challenge-title">Before / After</div>
-        <div class="wow-challenge-desc">Animated metrics dashboard — Popeye F → A, 5xx 12% → 0.1%</div>
+        <div class="wow-challenge-title">payment-data-pvc</div>
+        <div class="wow-challenge-desc">Pending → Bound (StorageClass recreated)</div>
       </div>
     </div>
   </div>
@@ -1827,14 +1833,17 @@ nav.topnav ul a:hover { color: var(--text-bright); }
     <div class="arch-grid">
       <div>
         <span class="eyebrow">The stack</span>
-        <h2 class="h2">Two agents.<br>One broken cluster.<br>One LLM brain.</h2>
+        <h2 class="h2">Two agents.<br>One broken cluster.<br>The LLM of your choice.</h2>
         <p class="lead mt-32">
-          We stood up a real Kubernetes API server (mocked at the HTTP layer but
-          returning realistic <span class="mono text-cyan">payment-prod</span> cluster state),
-          then pointed both agents at it. K8sGPT runs the analyzers; Robusta reacts to alerts.
-          Both call <span class="text-purple">GLM-4.5</span> via a custom translation proxy
-          that bridges k8sgpt's <span class="mono">customrest</span> protocol to Z.AI's
-          OpenAI-compatible endpoint.
+          We stood up a <strong>mock Kubernetes API server</strong> in Python — real REST API,
+          real discovery, real read/write verbs over TLS, serving a deliberately broken
+          <span class="mono text-cyan">payment-prod</span> namespace — and pointed the real
+          binaries at it. K8sGPT runs its analyzers; a small reference agent handles the
+          alert-driven loop that Robusta performs. Explanations go through
+          <span class="mono">llm_proxy.py</span>, which bridges k8sgpt's
+          <span class="mono">customrest</span> protocol to any OpenAI-compatible backend.
+          Real Robusta itself runs in the separate <span class="mono">kind/</span> path,
+          against a real cluster.
         </p>
         <div class="mt-48">
           <span class="eyebrow">Why these two?</span>
@@ -1853,16 +1862,16 @@ nav.topnav ul a:hover { color: var(--text-bright); }
             <div class="arch-layer-title">Prometheus + Alertmanager</div>
             <div class="arch-layer-tag">observability</div>
           </div>
-          <div class="arch-layer-body">Fires <span class="mono">PaymentAPIHighErrorRate</span> when 5xx &gt; 5% for 5m</div>
+          <div class="arch-layer-body">Emits <span class="mono">PaymentAPIHighErrorRate</span> — a JSON fixture in this path; a real PrometheusRule in <span class="mono">kind/</span></div>
         </div>
         <div class="arch-flow-arrow">↓ webhook</div>
         <div class="arch-layer">
           <div class="arch-layer-header">
             <div class="arch-layer-icon robusta">R</div>
-            <div class="arch-layer-title">Robusta</div>
-            <div class="arch-layer-tag">autonomous SRE</div>
+            <div class="arch-layer-title">alert_triage_agent.py</div>
+            <div class="arch-layer-tag">reference impl of Robusta's loop</div>
           </div>
-          <div class="arch-layer-body">Receives alert → queries cluster → calls LLM → posts Slack card</div>
+          <div class="arch-layer-body">Receives alert → queries cluster → calls LLM → renders Slack card (posting is opt-in)</div>
         </div>
         <div class="arch-flow-arrow">↓ /api/v1/*  (kubectl)</div>
         <div class="arch-layer">
@@ -1872,7 +1881,7 @@ nav.topnav ul a:hover { color: var(--text-bright); }
             <div class="arch-layer-tag">payment-prod ns</div>
           </div>
           <div class="arch-layer-body">
-            2 nodes · 2 broken Deployments · 1 dangling Ingress · 1 Pending PVC · 1 DiskPressure node
+            2 nodes (1 DiskPressure) · 2 broken Deployments · 2 failing Pods · 1 dangling Ingress · 1 endpoint-less Service · 1 Pending PVC
           </div>
         </div>
         <div class="arch-flow-arrow">↓ query state</div>
@@ -1882,14 +1891,14 @@ nav.topnav ul a:hover { color: var(--text-bright); }
             <div class="arch-layer-title">K8sGPT</div>
             <div class="arch-layer-tag">SRE agent</div>
           </div>
-          <div class="arch-layer-body">Runs 14 analyzers → emits 6 real findings → optional LLM explain</div>
+          <div class="arch-layer-body">Runs its Go analyzers → emits 8 findings → optional LLM explain</div>
         </div>
         <div class="arch-flow-arrow">↓ customrest → OpenAI-compat</div>
         <div class="arch-layer">
           <div class="arch-layer-header">
-            <div class="arch-layer-icon glm">G</div>
-            <div class="arch-layer-title">GLM-4.5 via Z.AI</div>
-            <div class="arch-layer-tag">LLM brain</div>
+            <div class="arch-layer-icon glm">L</div>
+            <div class="arch-layer-title">llm_proxy.py → your backend</div>
+            <div class="arch-layer-tag">ollama · openai · openrouter · zai · custom · replay</div>
           </div>
           <div class="arch-layer-body">Translates k8sgpt prompts into chat completions, returns explanations</div>
         </div>
@@ -1937,7 +1946,7 @@ nav.topnav ul a:hover { color: var(--text-bright); }
       </div>
       <div class="meta-item">
         <span class="meta-label">LLM Backend</span>
-        <span class="meta-value">GLM-4.5 (via customrest)</span>
+        <span class="meta-value">customrest → llm_proxy.py</span>
       </div>
       <div class="meta-item">
         <span class="meta-label">Analyzers</span>
@@ -1948,11 +1957,13 @@ nav.topnav ul a:hover { color: var(--text-bright); }
     <!-- DEMO 1: SCAN -->
     <div class="mt-48">
       <span class="eyebrow">Demo 1 · Cluster triage</span>
-      <h3 class="h3">Find six real problems in 0.4 seconds.</h3>
+      <h3 class="h3">Eight findings, no LLM involved.</h3>
       <p class="text-dim" style="max-width:720px">
-        The CLI scans the <span class="mono">payment-prod</span> namespace against the live
-        Kubernetes API. Every error below comes from a real analyzer — the LLM is not
-        involved at this stage.
+        The real <span class="mono">k8sgpt</span> v0.4.36 binary scans the
+        <span class="mono">payment-prod</span> namespace over the Kubernetes REST API — served
+        here by <span class="mono">scripts/mock_k8s_server.py</span>, a simulator the binary
+        treats like any other kube-apiserver. Every error below comes from a real Go analyzer;
+        the LLM is not involved at this stage.
       </p>
     </div>
 
@@ -1967,7 +1978,7 @@ nav.topnav ul a:hover { color: var(--text-bright); }
         <span class="demo-card-tag">REAL OUTPUT</span>
       </div>
       <div class="demo-card-body single">
-        <img class="demo-gif" src="gifs/k8sgpt_scan.gif" alt="K8sGPT cluster triage demo" loading="lazy">
+        <img class="demo-gif" src="gifs/scan.gif" alt="K8sGPT cluster triage demo" loading="lazy">
       </div>
     </div>
 
@@ -1985,27 +1996,33 @@ nav.topnav ul a:hover { color: var(--text-bright); }
       <div class="demo-card-body single">
         <div class="demo-pane">
           <div class="demo-pane-label">terminal output</div>
-<pre><span class="dim">Service payment-prod/payment-api-svc does not exist
+<pre><span class="dim">$ k8sgpt analyze --kubecontext mock-context --no-cache -n payment-prod
 AI Provider: AI not used; --explain not set</span>
 
 <span class="num">0</span>: <span class="key">Node</span> worker-3()
 - <span class="err">Error:</span> worker-3 has condition of type <span class="warn">DiskPressure</span>, reason KubeletHasNoDiskSpace: kubelet has disk pressure
 
-<span class="num">1</span>: <span class="key">Deployment</span> payment-prod/payment-api()
-- <span class="err">Error:</span> Deployment payment-prod/payment-api has 1 replicas but 0 are available with status running
+<span class="num">1</span>: <span class="key">PersistentVolumeClaim</span> payment-prod/payment-data-pvc()
+- <span class="err">Error:</span> storageclass.storage.k8s.io "standard" not found
 
-<span class="num">2</span>: <span class="key">Deployment</span> payment-prod/payment-worker()
-- <span class="err">Error:</span> Deployment payment-prod/payment-worker has 1 replicas but 0 are available with status running
+<span class="num">2</span>: <span class="key">Service</span> payment-prod/payment-api-svc()
+- <span class="err">Error:</span> Service has no endpoints, expected label app=payment-api-frontend
 
-<span class="num">3</span>: <span class="key">Pod</span> payment-prod/payment-api-7c4f5b-x9qkl()
+<span class="num">3</span>: <span class="key">Ingress</span> payment-prod/payment-ingress()
+- <span class="err">Error:</span> Ingress uses the ingress class nginx which does not exist.
+- <span class="err">Error:</span> Ingress uses the service payment-prod/payment-frontend which does not exist.
+
+<span class="num">4</span>: <span class="key">Pod</span> payment-prod/payment-api-7c4f5b-x9qkl(Deployment/payment-api)
 - <span class="err">Error:</span> the last termination reason is <span class="warn">Error</span> container=api pod=payment-api-7c4f5b-x9qkl
 
-<span class="num">4</span>: <span class="key">Pod</span> payment-prod/payment-worker-6d8b2c-p3mnr()
+<span class="num">5</span>: <span class="key">Pod</span> payment-prod/payment-worker-6d8b2c-p3mnr(Deployment/payment-worker)
 - <span class="err">Error:</span> the last termination reason is <span class="warn">OOMKilled</span> container=worker pod=payment-worker-6d8b2c-p3mnr
 
-<span class="num">5</span>: <span class="key">Ingress</span> payment-prod/payment-ingress()
-- <span class="err">Error:</span> Ingress uses the ingress class nginx which does not exist.
-- <span class="err">Error:</span> Ingress uses the service payment-prod/payment-frontend which does not exist.</pre>
+<span class="num">6</span>: <span class="key">Deployment</span> payment-prod/payment-api()
+- <span class="err">Error:</span> Deployment payment-prod/payment-api has 1 replicas but 0 are available with status running
+
+<span class="num">7</span>: <span class="key">Deployment</span> payment-prod/payment-worker()
+- <span class="err">Error:</span> Deployment payment-prod/payment-worker has 1 replicas but 0 are available with status running</pre>
         </div>
       </div>
     </div>
@@ -2013,11 +2030,14 @@ AI Provider: AI not used; --explain not set</span>
     <!-- DEMO 2: EXPLAIN -->
     <div class="mt-48">
       <span class="eyebrow">Demo 2 · AI root-cause analysis</span>
-      <h3 class="h3">Same scan, with GLM-4.5 writing the diagnosis.</h3>
+      <h3 class="h3">Same scan, with an LLM writing the diagnosis.</h3>
       <p class="text-dim" style="max-width:720px">
-        Passing <span class="mono">--explain</span> sends each finding to the LLM
-        (GLM-4.5 via the <span class="mono">customrest</span> backend). The LLM produces a
-        step-by-step remediation plan. Total of six real LLM calls — cached for instant replay.
+        Passing <span class="mono">--explain</span> sends each finding to whichever backend you
+        configured through <span class="mono">llm_proxy.py</span> — ollama (the credential-free
+        default), openai, openrouter, zai, any custom OpenAI-compatible endpoint, or
+        <span class="mono">replay</span>, which answers offline from responses captured earlier in
+        <span class="mono">captured/llm_cache.json</span>. The model produces a step-by-step
+        remediation plan; the findings it explains still come from the deterministic analyzers.
       </p>
     </div>
 
@@ -2032,7 +2052,7 @@ AI Provider: AI not used; --explain not set</span>
         <span class="demo-card-tag glm">LLM-EXPLAINED</span>
       </div>
       <div class="demo-card-body single">
-        <img class="demo-gif" src="gifs/k8sgpt_explain.gif" alt="K8sGPT with GLM explain demo" loading="lazy">
+        <img class="demo-gif" src="gifs/explain.gif" alt="K8sGPT --explain demo" loading="lazy">
       </div>
     </div>
 
@@ -2044,17 +2064,16 @@ AI Provider: AI not used; --explain not set</span>
           <span class="demo-card-dot y"></span>
           <span class="demo-card-dot g"></span>
         </div>
-        <span class="demo-card-title">k8sgpt analyze --output json — structured result</span>
+        <span class="demo-card-title">k8sgpt analyze --output json — captured excerpt</span>
         <span class="demo-card-tag">JSON</span>
       </div>
       <div class="demo-card-body single">
         <div class="demo-pane">
-          <div class="demo-pane-label">raw JSON response from k8sgpt</div>
+          <div class="demo-pane-label">raw JSON from k8sgpt (2 of 8 results shown)</div>
 <pre>{
   <span class="key">"provider"</span>: <span class="str">""</span>,
   <span class="key">"errors"</span>: <span class="key">null</span>,
   <span class="key">"status"</span>: <span class="str">"ProblemDetected"</span>,
-  <span class="key">"problems"</span>: <span class="num">7</span>,
   <span class="key">"results"</span>: [
     {
       <span class="key">"kind"</span>: <span class="str">"Deployment"</span>,
@@ -2079,7 +2098,7 @@ AI Provider: AI not used; --explain not set</span>
         }
       ]
     },
-    <span class="c">// ... 4 more results (Ingress, Node, second Pod, second Deployment)</span>
+    <span class="c">// ... 6 more results (Node, PersistentVolumeClaim, Service, Ingress, second Pod, second Deployment)</span>
   ]
 }</pre>
         </div>
@@ -2106,7 +2125,8 @@ AI Provider: AI not used; --explain not set</span>
         <div class="feature-title">Pluggable LLM backends</div>
         <div class="feature-desc">
           14 backends including OpenAI, Azure, Ollama, LocalAI, Amazon Bedrock,
-          and <span class="mono">customrest</span> — which is what we wired to GLM-4.5.
+          and <span class="mono">customrest</span> — which is what we wired to
+          <span class="mono">llm_proxy.py</span>.
           Sensitive fields are auto-anonymized (see the <span class="mono">Masked</span> entries above).
         </div>
       </div>
@@ -2180,11 +2200,23 @@ AI Provider: AI not used; --explain not set</span>
     <!-- Alert flow diagram -->
     <div class="mt-48">
       <span class="eyebrow">The autonomous loop</span>
-      <h3 class="h3">From alert to RCA in under 30 seconds.</h3>
+      <h3 class="h3">Alert in, root-cause card out.</h3>
       <p class="text-dim" style="max-width:720px">
-        No human in the loop. Robusta receives the Alertmanager webhook, decides what to
-        investigate, gathers the evidence, asks the LLM, and renders a Slack card with
-        remediation suggestions.
+        Robusta receives the Alertmanager webhook, decides what to investigate, gathers the
+        evidence, asks the LLM, and posts a Slack card with remediation suggestions.
+      </p>
+      <p class="text-dim" style="max-width:720px">
+        <strong>What runs where.</strong> The demo on this page does <em>not</em> run Robusta.
+        It runs <span class="mono">scripts/alert_triage_agent.py</span>, a ~250-line
+        <strong>reference implementation</strong> of the same alert → cluster-context → LLM →
+        Slack-card loop, so you can read the whole thing in one sitting. Slack posting is
+        opt-in: nothing leaves your machine unless you set
+        <span class="mono">SLACK_WEBHOOK_URL</span> and pass <span class="mono">--post-slack</span>.
+        <strong>Real Robusta</strong> — the actual robusta-dev Helm chart — runs in the separate
+        <span class="mono">kind/</span> path:
+        <span class="mono">make kind-up &amp;&amp; make kind-broken &amp;&amp; make kind-robusta &amp;&amp; make kind-fire-alert</span>
+        creates a real kind cluster, deploys genuinely broken workloads, helm-installs Robusta
+        with the Prometheus stack, and fires a real Prometheus alert into it.
       </p>
     </div>
 
@@ -2193,42 +2225,45 @@ AI Provider: AI not used; --explain not set</span>
         <div class="flow-step-num">STEP 01</div>
         <div class="flow-step-icon">!</div>
         <div class="flow-step-title">Alert fires</div>
-        <div class="flow-step-desc">Prometheus sends <span class="mono">PaymentAPIHighErrorRate</span> webhook to Robusta</div>
+        <div class="flow-step-desc">An Alertmanager <span class="mono">PaymentAPIHighErrorRate</span> webhook arrives (a fixture here; a real Prometheus alert in <span class="mono">kind/</span>)</div>
         <span class="flow-arrow">→</span>
       </div>
       <div class="flow-step">
         <div class="flow-step-num">STEP 02</div>
         <div class="flow-step-icon">?</div>
         <div class="flow-step-title">Gather context</div>
-        <div class="flow-step-desc">Robusta queries pod, deployment, events, node via the Kubernetes API</div>
+        <div class="flow-step-desc">The agent queries pod, deployment, events and node state via the Kubernetes API</div>
         <span class="flow-arrow">→</span>
       </div>
       <div class="flow-step">
         <div class="flow-step-num">STEP 03</div>
         <div class="flow-step-icon">G</div>
         <div class="flow-step-title">LLM analysis</div>
-        <div class="flow-step-desc">Prompt = alert + cluster state. GLM-4.5 produces RCA + remediation</div>
+        <div class="flow-step-desc">Prompt = alert + cluster state. The configured LLM backend produces RCA + remediation</div>
         <span class="flow-arrow">→</span>
       </div>
       <div class="flow-step">
         <div class="flow-step-num">STEP 04</div>
         <div class="flow-step-icon">{ }</div>
         <div class="flow-step-title">Render card</div>
-        <div class="flow-step-desc">Markdown rendered to Slack block kit with graphs & runbook links</div>
+        <div class="flow-step-desc">Markdown rendered into a Slack-style card with graph & runbook links</div>
         <span class="flow-arrow">→</span>
       </div>
       <div class="flow-step">
         <div class="flow-step-num">STEP 05</div>
         <div class="flow-step-icon">#</div>
-        <div class="flow-step-title">Post &amp; ack</div>
-        <div class="flow-step-desc">Posts to <span class="mono">#sre-incidents</span>, acks in PagerDuty, opens Jira ticket</div>
+        <div class="flow-step-title">Post (opt-in)</div>
+        <div class="flow-step-desc">With <span class="mono">SLACK_WEBHOOK_URL</span> set, the card is posted to Slack; otherwise it is only rendered locally</div>
       </div>
     </div>
 
     <!-- Demo GIF -->
     <div class="mt-48">
-      <span class="eyebrow">Demo 3 · Live investigation</span>
-      <h3 class="h3">Watch Robusta think.</h3>
+      <span class="eyebrow">Demo 3 · Alert triage</span>
+      <h3 class="h3">Watch the reference agent work.</h3>
+      <p class="text-dim" style="max-width:720px">
+        <span class="mono">alert_triage_agent.py</span>, recorded live. Not Robusta — Robusta's flow.
+      </p>
     </div>
 
     <div class="demo-card mt-32">
@@ -2239,20 +2274,21 @@ AI Provider: AI not used; --explain not set</span>
           <span class="demo-card-dot g"></span>
         </div>
         <span class="demo-card-title">z@devops-extravaganza: ~/demo</span>
-        <span class="demo-card-tag robusta">REAL LLM CALL</span>
+        <span class="demo-card-tag robusta">REFERENCE IMPL</span>
       </div>
       <div class="demo-card-body single">
-        <img class="demo-gif" src="gifs/robusta.gif" alt="Robusta autonomous SRE demo" loading="lazy">
+        <img class="demo-gif" src="gifs/triage.gif" alt="Alert triage reference agent demo" loading="lazy">
       </div>
     </div>
 
     <!-- The Slack card -->
     <div class="mt-48">
       <span class="eyebrow">The output</span>
-      <h3 class="h3">Slack card posted to <span class="mono text-orange">#sre-incidents</span></h3>
+      <h3 class="h3">The card the agent renders</h3>
       <p class="text-dim" style="max-width:720px">
-        The markdown below is the verbatim output of the GLM-4.5 call shown in the GIF above.
-        It is rendered here in the Slack card format that Robusta would actually post.
+        A captured LLM root-cause analysis, rendered in the Slack card layout the agent emits.
+        Posting it to a real channel is opt-in — this page is showing the local render, and the
+        alert it responds to is the fixture payload below.
       </p>
     </div>
 
@@ -2264,7 +2300,7 @@ AI Provider: AI not used; --explain not set</span>
       </div>
       <div class="slack-body">
         <div class="slack-message-header">
-          <span class="slack-bot-name">Robusta</span>
+          <span class="slack-bot-name">alert-triage-agent</span>
           <span class="slack-bot-tag">APP</span>
           <span class="slack-timestamp">12 minutes ago</span>
         </div>
@@ -2311,12 +2347,12 @@ AI Provider: AI not used; --explain not set</span>
           <span class="demo-card-dot y"></span>
           <span class="demo-card-dot g"></span>
         </div>
-        <span class="demo-card-title">prometheus-alert.json — Alertmanager webhook payload</span>
+        <span class="demo-card-title">alerts/payment-api-high-error-rate.json — Alertmanager webhook fixture</span>
         <span class="demo-card-tag robusta">INPUT</span>
       </div>
       <div class="demo-card-body single">
         <div class="demo-pane">
-          <div class="demo-pane-label robusta">webhook body Robusta received</div>
+          <div class="demo-pane-label robusta">webhook body fed to the agent</div>
 <pre>{
   <span class="key">"version"</span>: <span class="str">"4"</span>,
   <span class="key">"status"</span>: <span class="str">"firing"</span>,
@@ -2399,50 +2435,50 @@ AI Provider: AI not used; --explain not set</span>
     <h2 class="h2">Six pieces, every one replaceable</h2>
     <p class="lead">
       Each component is a thin Python service or static asset. Swap any of them for
-      your preferred alternative — real kube-apiserver, real Slack, real Ollama —
-      without touching the others.
+      your preferred alternative — a real kube-apiserver, a Slack webhook, your own
+      model host — without touching the others.
     </p>
     <div class="components-grid">
       <div class="component-card">
         <div class="component-icon" style="background: linear-gradient(135deg, #326ce5, #5b9bff)">K8s</div>
         <h4>mock_k8s_server.py</h4>
         <div class="component-port">:8443 · HTTPS</div>
-        <p>Mock kube-apiserver returning 6 broken resources in the <code>payment-prod</code> namespace. Implements enough of the K8s REST API (<code>/api/v1</code>, <code>/apis/apps/v1</code>, <code>/apis/networking.k8s.io/v1</code>, …) to satisfy <code>kubectl</code> and <code>k8sgpt</code>.</p>
-        <div class="component-replaces"><strong>Replaces:</strong><code>your kube-apiserver</code></div>
+        <p>A mock kube-apiserver serving a deliberately broken <code>payment-prod</code> namespace. Full discovery plus full read/write verbs (GET/POST/PUT/PATCH/DELETE) across <code>/api/v1</code>, <code>/apis/apps/v1</code>, <code>/apis/networking.k8s.io/v1</code>, … — faithful enough that the real <code>kubectl</code> and <code>k8sgpt</code> can't tell the difference. A reconciler applies writes, so remediation actually changes state. TLS certs are generated on first boot.</p>
+        <div class="component-replaces"><strong>Simulates:</strong><code>your kube-apiserver</code></div>
       </div>
       <div class="component-card">
         <div class="component-icon" style="background: linear-gradient(135deg, #00d9ff, #5b9bff)">K8G</div>
         <h4>k8sgpt (binary)</h4>
         <div class="component-port">v0.4.36 · Apache 2.0</div>
-        <p>14 structured Go analyzers (Pod, Deployment, Service, Ingress, PVC, Node, ReplicaSet, …). Rules-based, deterministic — finds 6 real problems in &lt;100ms with no LLM. Add <code>--explain</code> to route each finding to GLM.</p>
+        <p>Structured Go analyzers (Pod, Deployment, Service, Ingress, PVC, Node, ReplicaSet, …). Rules-based and deterministic — returns 8 findings against this cluster with no LLM involved. Add <code>--explain</code> to route each finding to your configured model.</p>
         <div class="component-replaces"><strong>Replaces:</strong><code>your SRE's first 30 minutes</code></div>
       </div>
       <div class="component-card">
-        <div class="component-icon" style="background: linear-gradient(135deg, #b388ff, #7c5cff)">ZAI</div>
-        <h4>zai_proxy.py</h4>
+        <div class="component-icon" style="background: linear-gradient(135deg, #b388ff, #7c5cff)">LLM</div>
+        <h4>llm_proxy.py</h4>
         <div class="component-port">:8081 · HTTP</div>
-        <p>Translates k8sgpt's <code>customrest</code> request shape (<code>{model, prompt, options.message}</code>) to Z.AI's OpenAI-compatible <code>/chat/completions</code> endpoint. Injects the required <code>X-Token</code> / <code>X-User-Id</code> / <code>X-Chat-Id</code> headers. Caches responses for instant replay.</p>
-        <div class="component-replaces"><strong>Replaces:</strong><code>any OpenAI-compat proxy</code></div>
+        <p>Translates k8sgpt's <code>customrest</code> request shape (<code>{model, prompt, options.message}</code>) into an OpenAI-compatible <code>/chat/completions</code> call and injects whatever auth the provider needs. Provider-agnostic: <code>ollama</code> (default, credential-free), <code>openai</code>, <code>openrouter</code>, <code>zai</code>, <code>custom</code>, or <code>replay</code>.</p>
+        <div class="component-replaces"><strong>Fronts:</strong><code>any OpenAI-compatible API</code></div>
       </div>
       <div class="component-card">
-        <div class="component-icon" style="background: linear-gradient(135deg, #b388ff, #ff7a3d)">GLM</div>
-        <h4>GLM-4.5 (Z.AI)</h4>
-        <div class="component-port">internal-api.z.ai</div>
-        <p>The LLM brain — generates step-by-step root-cause analyses for each k8sgpt finding and the Robusta Slack card. Real API calls via the proxy. Cached to <code>zai_cache.json</code> so demo re-runs are instant.</p>
-        <div class="component-replaces"><strong>Replaces:</strong><code>any OpenAI / Ollama / Bedrock</code></div>
+        <div class="component-icon" style="background: linear-gradient(135deg, #b388ff, #ff7a3d)">MDL</div>
+        <h4>the model (your choice)</h4>
+        <div class="component-port">LLM_BACKEND=ollama by default</div>
+        <p>Whatever backend you point the proxy at writes the root-cause analyses for the <code>--explain</code> pass and the triage card. No vendor is required. <code>LLM_BACKEND=replay</code> serves previously captured responses from <code>captured/llm_cache.json</code> with no network at all, which is what keeps the recorded demos reproducible.</p>
+        <div class="component-replaces"><strong>Any of:</strong><code>ollama / openai / openrouter / zai / custom</code></div>
       </div>
       <div class="component-card">
         <div class="component-icon" style="background: linear-gradient(135deg, #ff7a3d, #ff3d6e)">RBS</div>
-        <h4>robusta_demo.py</h4>
-        <div class="component-port">: one-shot</div>
-        <p>Robusta-style autonomous SRE flow: receives an Alertmanager webhook, gathers cluster context via <code>kubectl</code>, builds an LLM prompt with alert + state, calls GLM, renders a Slack-style incident card. Real loop, real LLM call.</p>
-        <div class="component-replaces"><strong>Replaces:</strong><code>Robusta SaaS</code></div>
+        <h4>alert_triage_agent.py</h4>
+        <div class="component-port">: one-shot · ~250 lines</div>
+        <p>A readable reference implementation of Robusta's loop: receives an Alertmanager webhook, gathers cluster context via <code>kubectl</code>, builds an LLM prompt from alert + state, calls the model, renders a Slack-style incident card. Posting to Slack is opt-in via <code>SLACK_WEBHOOK_URL</code>.</p>
+        <div class="component-replaces"><strong>Not Robusta:</strong><code>real Robusta runs in kind/</code></div>
       </div>
       <div class="component-card">
         <div class="component-icon" style="background: linear-gradient(135deg, #888, #555)">SHW</div>
         <h4>index.html + GIFs</h4>
         <div class="component-port">:80 / Vercel edge</div>
-        <p>Single-file dark-themed landing page (~80KB) with embedded demo GIFs, JSON outputs, and a Slack-style RCA card. Self-contained — no JS framework, no build step, no external assets except Google Fonts.</p>
+        <p>Single-file dark-themed landing page with linked demo GIFs, JSON outputs, and a Slack-style RCA card. Self-contained — no JS framework, no build step, no external assets except Google Fonts.</p>
         <div class="component-replaces"><strong>Replaces:</strong><code>your project's README</code></div>
       </div>
     </div>
@@ -2454,44 +2490,49 @@ AI Provider: AI not used; --explain not set</span>
      =================================================================== -->
 <section class="section uat-section" id="uat">
   <div class="container">
-    <span class="eyebrow">Test results</span>
-    <h2 class="h2">15/15 acceptance tests pass</h2>
+    <span class="eyebrow">Acceptance suite</span>
+    <h2 class="h2">17 checks you can run yourself</h2>
     <p class="lead">
-      Every component was verified in isolation and the full chain was tested
-      end-to-end. Run them yourself: <code class="mono">python scripts/run_uat.py</code>
+      No score is baked into this page. The suite reports <strong>pass / fail / skip</strong> per
+      check — skipping anything whose prerequisite binary or service is missing rather than
+      pretending it passed — and writes a machine-readable summary to
+      <code class="mono">outputs/uat_results.json</code>. Run it:
+      <code class="mono">./run.sh uat</code>
     </p>
     <table class="uat-table">
       <thead>
         <tr>
-          <th>Test</th>
-          <th>Description</th>
-          <th>Status</th>
-          <th>Duration</th>
+          <th>Check</th>
+          <th>What it verifies</th>
         </tr>
       </thead>
       <tbody>
-          <tr><td><code>T01</code></td><td>mock-k8s-api serves the 6 broken resources</td><td><span class="uat-pass">✓ pass</span></td><td>3 ms</td></tr>
-          <tr><td><code>T02</code></td><td>payment-api pod is in CrashLoopBackOff</td><td><span class="uat-pass">✓ pass</span></td><td>2 ms</td></tr>
-          <tr><td><code>T03</code></td><td>payment-worker pod was OOMKilled (exit 137)</td><td><span class="uat-pass">✓ pass</span></td><td>2 ms</td></tr>
-          <tr><td><code>T04</code></td><td>worker-3 node has DiskPressure=True</td><td><span class="uat-pass">✓ pass</span></td><td>2 ms</td></tr>
-          <tr><td><code>T05</code></td><td>payment-ingress routes to a non-existent Service</td><td><span class="uat-pass">✓ pass</span></td><td>2 ms</td></tr>
-          <tr><td><code>T06</code></td><td>payment-data-pvc is Pending (no StorageClass)</td><td><span class="uat-pass">✓ pass</span></td><td>2 ms</td></tr>
-          <tr><td><code>T07</code></td><td>kubectl can talk to the mock server</td><td><span class="uat-pass">✓ pass</span></td><td>64 ms</td></tr>
-          <tr><td><code>T08</code></td><td>k8sgpt analyze finds ≥6 problems with no LLM</td><td><span class="uat-pass">✓ pass</span></td><td>126 ms</td></tr>
-          <tr><td><code>T09</code></td><td>k8sgpt filters list shows ≥10 active analyzers</td><td><span class="uat-pass">✓ pass</span></td><td>64 ms</td></tr>
-          <tr><td><code>T10</code></td><td>zai_proxy responds on :8081</td><td><span class="uat-pass">✓ pass</span></td><td>2 ms</td></tr>
-          <tr><td><code>T11</code></td><td>zai_proxy correctly translates the customrest request shape</td><td><span class="uat-pass">✓ pass</span></td><td>1 ms</td></tr>
-          <tr><td><code>T12</code></td><td>end-to-end: k8sgpt --explain routes through proxy to GLM</td><td><span class="uat-pass">✓ pass</span></td><td>164 ms</td></tr>
-          <tr><td><code>T13</code></td><td>robusta_demo.py completes the autonomous SRE flow</td><td><span class="uat-pass">✓ pass</span></td><td>335 ms</td></tr>
-          <tr><td><code>T14</code></td><td>showcase index.html references all 3 demo GIFs</td><td><span class="uat-pass">✓ pass</span></td><td>0 ms</td></tr>
-          <tr><td><code>T15</code></td><td>all 3 demo GIFs are ≥20 seconds long</td><td><span class="uat-pass">✓ pass</span></td><td>0 ms</td></tr>
+          <tr><td><code>A1</code></td><td>the mock API answers the Kubernetes discovery endpoints</td></tr>
+          <tr><td><code>A2</code></td><td>payment-api Pod is in CrashLoopBackOff</td></tr>
+          <tr><td><code>A3</code></td><td>payment-worker Pod was OOMKilled (exit 137)</td></tr>
+          <tr><td><code>A4</code></td><td>worker-3 Node reports DiskPressure=True</td></tr>
+          <tr><td><code>A5</code></td><td>payment-ingress backend Service does not exist</td></tr>
+          <tr><td><code>A6</code></td><td>payment-data-pvc is Pending with no StorageClass</td></tr>
+          <tr><td><code>A7</code></td><td>payment-api-svc selector matches no Pod</td></tr>
+          <tr><td><code>B1</code></td><td>kubectl reads the cluster</td></tr>
+          <tr><td><code>B2</code></td><td>kubectl <em>writes</em> are accepted (a patch round-trips through the API)</td></tr>
+          <tr><td><code>B3</code></td><td>k8sgpt finds every broken resource (8 findings, 6 kinds)</td></tr>
+          <tr><td><code>C1</code></td><td>remediate.sh drives the finding count to zero with real kubectl writes</td></tr>
+          <tr><td><code>C2</code></td><td>reset restores the broken state</td></tr>
+          <tr><td><code>D1</code></td><td>the LLM proxy reports its backend honestly (including replay mode)</td></tr>
+          <tr><td><code>D2</code></td><td>the proxy answers k8sgpt's customrest request shape</td></tr>
+          <tr><td><code>E1</code></td><td>no absolute developer paths anywhere in the repo</td></tr>
+          <tr><td><code>E2</code></td><td>no credentials committed</td></tr>
+          <tr><td><code>E3</code></td><td>every file referenced by run.sh exists</td></tr>
       </tbody>
     </table>
     <div class="uat-summary">
-      <span class="uat-big-num">15 / 15</span>
+      <span class="uat-big-num">17</span>
       <span class="uat-summary-text">
-        passed · 0 failed · total 769ms · 7 LLM responses cached · 6 real K8s issues found ·
-        end-to-end k8sgpt --explain: 164ms (cache hit) / ~30s (cold cache, 6 real GLM calls)
+        checks · results are whatever your run produces, not a number typed into this page.
+        Checks B* and C* need the <code>kubectl</code> and <code>k8sgpt</code> binaries and the
+        mock API running; D* needs the LLM proxy. Anything missing is reported as
+        <strong>skip</strong>.
       </span>
     </div>
   </div>
@@ -2502,11 +2543,12 @@ AI Provider: AI not used; --explain not set</span>
      =================================================================== -->
 <section class="section quickstart-section" id="quickstart">
   <div class="container">
-    <span class="eyebrow">Three ways to run it</span>
+    <span class="eyebrow">Four ways to run it</span>
     <h2 class="h2">Pick your poison</h2>
     <p class="lead">
-      Vercel for instant landing page · local Python for the full demo stack ·
-      Docker for the containerized version with real LLM credentials.
+      Vercel for the landing page · local Python for the full demo stack against the mock API ·
+      Docker for the containerized version · <code class="mono">make kind-*</code> for a real
+      kind cluster with real Robusta.
     </p>
     <div class="qs-grid">
       <div class="qs-pane">
@@ -2532,65 +2574,66 @@ AI Provider: AI not used; --explain not set</span>
       <div class="qs-pane">
         <div class="qs-pane-head">
           <span class="qs-tag sandbox">SANDBOX</span>
-          <span class="qs-pane-meta">no Docker · Python only · 769ms UAT</span>
+          <span class="qs-pane-meta">no Docker · Python only · stdlib</span>
         </div>
         <div class="qs-pane-body"><span class="qs-cmt"># clone + start the full demo stack</span>
 <span class="qs-cmd">git</span> <span class="qs-arg">clone</span> <span class="qs-str">https://github.com/adventurewave-labs/agentic-devops-extravaganza.git</span>
 <span class="qs-cmd">cd</span> <span class="qs-arg">agentic-devops-extravaganza</span>
 
-<span class="qs-cmt"># bring up: mock K8s :8443 + Z.AI proxy :8081 + site :8080</span>
+<span class="qs-cmt"># bring up: mock K8s :8443 + LLM proxy :8081 + site :8080</span>
 <span class="qs-cmd">./</span><span class="qs-arg">run.sh demo</span>
 
-<span class="qs-cmt"># run k8sgpt against the mock cluster</span>
-<span class="qs-cmd">k8sgpt</span> <span class="qs-arg">analyze</span> <span class="qs-arg">--kubeconfig</span> mock-k8s/kubeconfig.yaml \
-  <span class="qs-arg">--kubecontext</span> mock-context <span class="qs-arg">-n</span> payment-prod \
-  <span class="qs-arg">--explain</span> <span class="qs-arg">--backend</span> customrest
+<span class="qs-cmt"># scan the mock cluster with the real k8sgpt binary</span>
+<span class="qs-cmd">./</span><span class="qs-arg">run.sh scan</span>        <span class="qs-cmt"># 8 findings, no LLM</span>
 
-<span class="qs-cmt"># run the UAT matrix (15 tests)</span>
-<span class="qs-cmd">python</span> <span class="qs-arg">scripts/run_uat.py</span>
+<span class="qs-cmt"># real kubectl writes, then the same scan again: 8 -&gt; 0</span>
+<span class="qs-cmd">./</span><span class="qs-arg">run.sh remediate</span>
+<span class="qs-cmd">./</span><span class="qs-arg">run.sh reset</span>       <span class="qs-cmt"># put the breakage back</span>
 
-<span class="qs-cmt"># stop everything</span>
+<span class="qs-cmt"># the alert -&gt; context -&gt; LLM -&gt; Slack-card agent</span>
+<span class="qs-cmd">./</span><span class="qs-arg">run.sh triage</span>
+
+<span class="qs-cmt"># acceptance suite + stop everything</span>
+<span class="qs-cmd">./</span><span class="qs-arg">run.sh uat</span>
 <span class="qs-cmd">./</span><span class="qs-arg">run.sh stop</span></div>
       </div>
 
       <div class="qs-pane">
         <div class="qs-pane-head">
           <span class="qs-tag docker">DOCKER</span>
-          <span class="qs-pane-meta">real GLM · site + mock K8s + proxy</span>
+          <span class="qs-pane-meta">site + mock K8s + LLM proxy</span>
         </div>
-        <div class="qs-pane-body"><span class="qs-cmt"># write your Z.AI config (see README for format)</span>
-<span class="qs-cmd">cat</span> <span class="qs-arg">&gt; .z-ai-config &lt;&lt;'EOF'</span>
-<span class="qs-arg">{ "baseUrl": "https://internal-api.z.ai/v1",</span>
-<span class="qs-arg">  "apiKey": "Z.ai",</span>
-<span class="qs-arg">  "chatId": "&lt;your-chat-id&gt;",</span>
-<span class="qs-arg">  "token": "&lt;your-jwt&gt;",</span>
-<span class="qs-arg">  "userId": "&lt;your-user-id&gt;" }</span>
-<span class="qs-arg">EOF</span>
+        <div class="qs-pane-body"><span class="qs-cmt"># choose an LLM backend (default: ollama, no credentials)</span>
+<span class="qs-cmd">export</span> <span class="qs-arg">LLM_BACKEND=ollama</span>
+<span class="qs-cmt"># or: openai / openrouter / zai / custom (+ that</span>
+<span class="qs-cmt"># provider's API key), or replay for no network at all</span>
 
 <span class="qs-cmt"># bring up the full stack (3 services)</span>
 <span class="qs-cmd">docker</span> <span class="qs-arg">compose up demo</span>
 
 <span class="qs-cmt"># endpoints:</span>
 <span class="qs-cmt">#   showcase: http://localhost:8080</span>
-<span class="qs-cmt">#   mock K8s: https://localhost:8443 (insecure)</span>
-<span class="qs-cmt">#   Z.AI proxy: http://localhost:8081</span>
+<span class="qs-cmt">#   mock K8s: https://localhost:8443 (self-signed)</span>
+<span class="qs-cmt">#   LLM proxy: http://localhost:8081</span>
 
-<span class="qs-cmt"># one-shot: run the Robusta autonomous SRE flow</span>
+<span class="qs-cmt"># one-shot: the alert-triage reference agent</span>
 <span class="qs-cmd">docker</span> <span class="qs-arg">compose run robusta</span></div>
       </div>
 
       <div class="qs-pane">
         <div class="qs-pane-head">
           <span class="qs-tag" style="background: linear-gradient(135deg, var(--robusta), var(--critical))">RECORD</span>
-          <span class="qs-pane-meta">regenerate GIFs · needs agg binary</span>
+          <span class="qs-pane-meta">re-record GIFs · needs agg binary</span>
         </div>
-        <div class="qs-pane-body"><span class="qs-cmt"># rebuild the asciinema casts from captured outputs</span>
+        <div class="qs-pane-body"><span class="qs-cmt"># re-record the demos in a real pty and rebuild the GIFs</span>
 <span class="qs-cmd">./</span><span class="qs-arg">run.sh record</span>
 
-<span class="qs-cmt"># this runs build_casts.py + agg for all 3 demos:</span>
-<span class="qs-cmt">#   k8sgpt_scan.gif     25s  cluster triage (no LLM)</span>
-<span class="qs-cmt">#   k8sgpt_explain.gif  25s  6 issues explained by GLM-4.5</span>
-<span class="qs-cmt">#   robusta.gif          25s  autonomous SRE flow</span>
+<span class="qs-cmt"># record_demos.py runs the real commands live, then agg</span>
+<span class="qs-cmt"># turns each cast into a GIF:</span>
+<span class="qs-cmt">#   scan.gif       k8sgpt triage (no LLM)</span>
+<span class="qs-cmt">#   explain.gif    k8sgpt --explain through the LLM proxy</span>
+<span class="qs-cmt">#   remediate.gif  real kubectl fixes, 8 findings -&gt; 0</span>
+<span class="qs-cmt">#   triage.gif     alert -&gt; context -&gt; LLM -&gt; Slack card</span>
 
 <span class="qs-cmt"># install agg (asciinema GIF generator):</span>
 <span class="qs-cmd">curl</span> <span class="qs-arg">-L</span> <span class="qs-str">https://github.com/asciinema/agg/releases/download/v1.9.0/agg-x86_64-unknown-linux-musl</span> \
@@ -2654,8 +2697,8 @@ AI Provider: AI not used; --explain not set</span>
         </tr>
         <tr>
           <td>Demo in this page</td>
-          <td>6 findings, 6 LLM calls</td>
-          <td>1 alert → 1 RCA card</td>
+          <td>Real binary: 8 findings → 0 after remediation</td>
+          <td>Reference implementation of the loop (real Robusta runs in <span class="mono">kind/</span>)</td>
         </tr>
       </tbody>
     </table>
@@ -2668,63 +2711,72 @@ AI Provider: AI not used; --explain not set</span>
 <section class="section appendix">
   <div class="container">
     <span class="eyebrow">Reproducibility</span>
-    <h2 class="h2 mb-32">How the demo was built — no smoke, no mirrors.</h2>
+    <h2 class="h2 mb-32">How the demo was built — and what is simulated.</h2>
     <p class="lead">
-      Everything you saw above was generated by real binaries against a real Kubernetes
-      API and a real LLM. Here are the building blocks.
+      Everything above was produced by real binaries — <code>k8sgpt</code> v0.4.36 and
+      <code>kubectl</code> — talking to a <strong>mock Kubernetes API server</strong> over the
+      real Kubernetes REST protocol. The cluster is simulated; the binaries, the API calls, the
+      writes and the findings are not. Here are the building blocks.
     </p>
 
     <div class="detail-grid">
       <div class="detail-card">
         <h4>1 · mock_k8s_server.py</h4>
         <p>
-          A single-file Python HTTPS server that implements enough of the Kubernetes
-          API spec (<code>/api/v1</code>, <code>/apis/apps/v1</code>,
-          <code>/apis/networking.k8s.io/v1</code>, etc.) to fool <code>kubectl</code>
-          and <code>k8sgpt</code>. Returns realistic broken-cluster state for the
-          <code>payment-prod</code> namespace.
+          A single-file Python HTTPS server implementing the Kubernetes REST API —
+          discovery plus GET/POST/PUT/PATCH/DELETE across <code>/api/v1</code>,
+          <code>/apis/apps/v1</code>, <code>/apis/networking.k8s.io/v1</code> and friends —
+          well enough that <code>kubectl</code> and <code>k8sgpt</code> behave exactly as
+          they would against a kube-apiserver. It serves broken
+          <code>payment-prod</code> state and reconciles the writes remediation makes.
+          Self-signed certs are generated on first boot.
         </p>
       </div>
       <div class="detail-card">
         <h4>2 · k8sgpt analyze</h4>
         <p>
           The actual <code>k8sgpt</code> v0.4.36 binary from GitHub releases, configured
-          with <code>--kubeconfig</code> pointing at the mock. All 14 analyzers run
-          unmodified. <code>--output json</code> emits the schema shown above.
+          with <code>--kubeconfig</code> pointing at the mock. The analyzers run
+          unmodified and return 8 findings. <code>--output json</code> emits the schema
+          shown above.
         </p>
       </div>
       <div class="detail-card">
-        <h4>3 · zai_proxy.py</h4>
+        <h4>3 · llm_proxy.py</h4>
         <p>
           k8sgpt's <code>customrest</code> backend POSTs to a single URL with a
-          non-OpenAI request shape. This proxy translates that shape into the
-          Z.AI chat-completions format and injects the required
-          <code>X-Token</code> / <code>X-User-Id</code> / <code>X-Chat-Id</code> headers.
+          non-OpenAI request shape. This proxy translates that shape into a standard
+          chat-completions call and injects whatever auth the chosen provider needs, so
+          the same demo works on ollama, openai, openrouter, zai, any custom
+          OpenAI-compatible endpoint, or the offline replay cache.
         </p>
       </div>
       <div class="detail-card">
-        <h4>4 · GLM-4.5 via Z.AI</h4>
+        <h4>4 · the model</h4>
         <p>
-          The same LLM that powers the chat you're reading. Six real calls in the
-          K8sGPT <code>--explain</code> pass and one in the Robusta demo — cached to
-          <code>zai_cache.json</code> so re-runs are instant, but the first call was a
-          real round-trip to <code>internal-api.z.ai/v1</code>.
+          No specific model is required and none is bundled. Point
+          <code>LLM_BACKEND</code> at whatever you have — <code>ollama</code> needs no
+          credentials at all. Responses captured from earlier runs live in
+          <code>captured/llm_cache.json</code>; <code>LLM_BACKEND=replay</code> serves
+          those verbatim with no network, and labels every answer as a replay.
         </p>
       </div>
       <div class="detail-card">
-        <h4>5 · build_casts.py</h4>
+        <h4>5 · record_demos.py</h4>
         <p>
-          Takes the captured outputs and emits asciinema v2 cast files. Each command
-          is "typed" character-by-character at a controlled cadence so the GIF is
-          watchable, but the displayed output is verbatim from the real binary.
+          Runs each demo for real in a pty and records the session to an asciinema
+          cast — the commands actually execute, and what you see scrolling past is the
+          binaries' live output rather than a script's idea of it. (Earlier versions of
+          this repo hand-authored the cast files; that is no longer how the GIFs are made.)
         </p>
       </div>
       <div class="detail-card">
         <h4>6 · agg → GIF</h4>
         <p>
           The <code>agg</code> static binary from the asciinema project converts each
-          <code>.cast</code> file to a GIF with the Monokai theme. Three GIFs total:
-          <code>k8sgpt_scan.gif</code>, <code>k8sgpt_explain.gif</code>, <code>robusta.gif</code>.
+          <code>.cast</code> file to a GIF. Four GIFs total:
+          <code>scan.gif</code>, <code>explain.gif</code>, <code>remediate.gif</code>,
+          <code>triage.gif</code>.
         </p>
       </div>
     </div>
@@ -2733,18 +2785,28 @@ AI Provider: AI not used; --explain not set</span>
       <h3 class="h3">Files included in this delivery</h3>
       <div class="code-block mt-32">
         <span class="filename">tree</span>
-<pre><span class="dim">/home/z/my-project/download/</span>
+<pre><span class="dim">agentic-devops-extravaganza/</span>
 ├── <span class="key">index.html</span>                    <span class="c"># this page</span>
 ├── <span class="key">gifs/</span>
-│   ├── k8sgpt_scan.gif         <span class="c"># Demo 1: cluster triage</span>
-│   ├── k8sgpt_explain.gif      <span class="c"># Demo 2: AI explanations</span>
-│   └── robusta.gif              <span class="c"># Demo 3: autonomous SRE</span>
+│   ├── scan.gif                 <span class="c"># Demo 1: cluster triage</span>
+│   ├── explain.gif              <span class="c"># Demo 2: LLM explanations</span>
+│   ├── remediate.gif            <span class="c"># real kubectl fixes, 8 -&gt; 0</span>
+│   └── triage.gif               <span class="c"># alert -&gt; LLM -&gt; Slack card</span>
+├── <span class="key">recordings/</span>                   <span class="c"># the asciinema casts behind the GIFs</span>
+├── <span class="key">scripts/</span>
+│   ├── mock_k8s_server.py       <span class="c"># the simulated cluster</span>
+│   ├── remediate.sh             <span class="c"># the real kubectl fixes</span>
+│   ├── llm_proxy.py             <span class="c"># customrest -&gt; any OpenAI-compat API</span>
+│   ├── alert_triage_agent.py    <span class="c"># reference impl of Robusta's loop</span>
+│   ├── record_demos.py          <span class="c"># records the demos in a pty</span>
+│   └── run_uat.py               <span class="c"># the acceptance suite</span>
+├── <span class="key">kind/</span>                         <span class="c"># real cluster + real Robusta (helm)</span>
 └── <span class="key">outputs/</span>
     ├── k8sgpt_analyze.json      <span class="c"># raw JSON from k8sgpt analyze</span>
     ├── k8sgpt_analyze.txt       <span class="c"># raw text from k8sgpt analyze</span>
-    ├── k8sgpt_explain.txt      <span class="c"># raw output from k8sgpt --explain</span>
-    ├── robusta_investigation.txt <span class="c"># full robusta demo output</span>
-    └── robusta_ai_rca.md        <span class="c"># the raw GLM-4.5 RCA markdown</span></pre>
+    ├── k8sgpt_explain.txt       <span class="c"># raw output from k8sgpt --explain</span>
+    ├── alert_triage.json        <span class="c"># what the triage agent produced</span>
+    └── uat_results.json         <span class="c"># last acceptance-suite run</span></pre>
       </div>
     </div>
   </div>
@@ -2758,7 +2820,7 @@ AI Provider: AI not used; --explain not set</span>
     <div class="repo-banner">
       <div class="repo-banner-text">
         <h4>Get the code</h4>
-        <p>Clone, fork, deploy. Apache 2.0 licensed, no auth required to view.</p>
+        <p>Clone, fork, deploy. MIT licensed, no auth required to view.</p>
       </div>
       <div class="repo-banner-actions">
         <a class="deploy-btn" href="https://github.com/adventurewave-labs/agentic-devops-extravaganza" target="_blank" rel="noopener">
@@ -2783,8 +2845,9 @@ AI Provider: AI not used; --explain not set</span>
       <div>
         <div class="footer-brand">Agentic DevOps</div>
         <p class="footer-desc">
-          A working demonstration of K8sGPT and Robusta — two open-source agentic AI
-          tools for Kubernetes — running against a real API and a real LLM.
+          A working demonstration of K8sGPT and Robusta — two open-source agentic AI tools
+          for Kubernetes. Real binaries against a simulated cluster, plus a real kind
+          cluster with real Robusta in <span class="mono">kind/</span>.
         </p>
       </div>
       <div>
@@ -2802,21 +2865,22 @@ AI Provider: AI not used; --explain not set</span>
           <li><a href="outputs/k8sgpt_analyze.json">k8sgpt_analyze.json</a></li>
           <li><a href="outputs/k8sgpt_analyze.txt">k8sgpt_analyze.txt</a></li>
           <li><a href="outputs/k8sgpt_explain.txt">k8sgpt_explain.txt</a></li>
-          <li><a href="outputs/robusta_investigation.txt">robusta_investigation.txt</a></li>
-          <li><a href="outputs/robusta_ai_rca.md">robusta_ai_rca.md</a></li>
+          <li><a href="outputs/alert_triage.json">alert_triage.json</a></li>
+          <li><a href="outputs/uat_results.json">uat_results.json</a></li>
         </ul>
       </div>
       <div>
         <div class="footer-title">Demos</div>
         <ul class="footer-list">
-          <li><a href="gifs/k8sgpt_scan.gif">k8sgpt_scan.gif</a></li>
-          <li><a href="gifs/k8sgpt_explain.gif">k8sgpt_explain.gif</a></li>
-          <li><a href="gifs/robusta.gif">robusta.gif</a></li>
+          <li><a href="gifs/scan.gif">scan.gif</a></li>
+          <li><a href="gifs/explain.gif">explain.gif</a></li>
+          <li><a href="gifs/remediate.gif">remediate.gif</a></li>
+          <li><a href="gifs/triage.gif">triage.gif</a></li>
         </ul>
       </div>
     </div>
     <div class="footer-bottom">
-      <span>// built with real tools · no mocks · no screenshots</span>
+      <span>// real binaries · simulated cluster · recorded live</span>
       <span>2026.08.20</span>
     </div>
   </div>

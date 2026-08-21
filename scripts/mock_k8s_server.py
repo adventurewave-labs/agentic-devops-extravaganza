@@ -1,1069 +1,628 @@
 """
-Mock Kubernetes API Server for the K8sGPT / Robusta demo.
+Mock Kubernetes API server for the Agentic DevOps demo.
 
-Serves a realistic "broken cluster" state via the standard Kubernetes REST API.
-Tools that speak Kubernetes (kubectl, k8sgpt, robusta) hit this server exactly
-as if it were a real kube-apiserver. The state we return is intentionally broken
-in several realistic ways, so k8sgpt's analyzers can find real problems.
+Serves the deliberately-broken `payment-prod` cluster over the standard
+Kubernetes REST API, with TLS, discovery, and full read/write verbs. Real
+`kubectl` and the real `k8sgpt` Go binary talk to it exactly as they would to
+a kube-apiserver — including writes.
 
-The cluster "story":
+This is a *simulator*, not a Kubernetes cluster. It is honest about that: it
+never claims to be a real cluster, the reconciler's simulated behaviours are
+enumerated in cluster_state.RECONCILER_RULES, and `kind/` in this repo runs
+the same demo against an actual kind cluster when you want the real thing.
 
-  Namespace: payment-prod
-    - Pod payment-api-7c4f5b-x9qkl     CrashLoopBackOff (image does not exist)
-    - Pod payment-worker-6d8b2c-p3mnr   OOMKilled (limits too low)
-    - Deployment payment-api            replica mismatch (0/1 ready)
-    - Deployment payment-worker          replica mismatch (0/1 ready)
-    - Service payment-api-svc           no endpoints (selector mismatch)
-    - Service payment-db-svc           ClusterIP only, OK
-    - PVC payment-data-pvc              Pending (no storage class)
-    - Secret payment-api-secret         MISSING (referenced by deployment)
-    - Ingress payment-ingress           backend service does not exist
+Endpoints beyond the Kubernetes API:
+    GET  /_demo/health     compact broken/healthy summary (used by the demos)
+    GET  /_demo/rules      the reconciler's rule table as JSON
+    POST /_demo/reset      restore the pristine broken cluster
 
-  Namespace: default
-    - Node worker-3                     DiskPressure condition
-    - Node worker-1                     Ready
-    - ConfigMap cluster-config          OK
+Usage:
+    python scripts/mock_k8s_server.py [PORT] [--no-tls]
 """
 import json
 import os
 import ssl
-import threading
+import subprocess
+import sys
 import time
-import http.server
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
+from urllib.parse import parse_qs, urlparse
 
-# ---------- Realistic "broken cluster" state ----------
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-NOW = "2026-08-20T04:00:00Z"
-UID_BASE = "f47ac10b-58cc-4372-a567-0e02b2c3d479"
+import cluster_fixtures as fx  # noqa: E402
+import paths  # noqa: E402
+from cluster_state import RECONCILER_RULES, ClusterState  # noqa: E402
 
-PAYMENT_API_POD = {
-    "apiVersion": "v1",
-    "kind": "Pod",
-    "metadata": {
-        "name": "payment-api-7c4f5b-x9qkl",
-        "namespace": "payment-prod",
-        "uid": UID_BASE + "-01",
-        "creationTimestamp": "2026-08-20T03:32:11Z",
-        "labels": {
-            "app": "payment-api",
-            "pod-template-hash": "7c4f5b",
-        },
-        "annotations": {"kubectl.kubernetes.io/restartedAt": "2026-08-20T03:32:00Z"},
-        "ownerReferences": [{
-            "apiVersion": "apps/v1",
-            "kind": "ReplicaSet",
-            "name": "payment-api-7c4f5b",
-            "uid": UID_BASE + "-rs",
-            "controller": True,
-            "blockOwnerDeletion": True,
-        }],
+STATE = ClusterState()
+
+VERBS = ["create", "delete", "deletecollection", "get", "list", "patch",
+         "update", "watch"]
+
+# (group, version) -> {plural: (Kind, namespaced)}
+GROUPS = {
+    ("", "v1"): {
+        "pods": ("Pod", True),
+        "services": ("Service", True),
+        "endpoints": ("Endpoints", True),
+        "events": ("Event", True),
+        "configmaps": ("ConfigMap", True),
+        "secrets": ("Secret", True),
+        "persistentvolumeclaims": ("PersistentVolumeClaim", True),
+        "persistentvolumes": ("PersistentVolume", False),
+        "namespaces": ("Namespace", False),
+        "nodes": ("Node", False),
     },
-    "spec": {
-        "containers": [{
-            "name": "api",
-            "image": "registry.io/payments/api:1.4.2",  # tag does not exist
-            "ports": [{"containerPort": 8080, "protocol": "TCP"}],
-            "env": [{"name": "DB_PASSWORD",
-                     "valueFrom": {"secretKeyRef": {"name": "payment-api-secret",
-                                                    "key": "password"}}}],
-            "resources": {
-                "requests": {"cpu": "100m", "memory": "128Mi"},
-                "limits": {"cpu": "500m", "memory": "256Mi"},
-            },
-        }],
-        "nodeName": "worker-1",
+    ("apps", "v1"): {
+        "deployments": ("Deployment", True),
+        "replicasets": ("ReplicaSet", True),
+        "statefulsets": ("StatefulSet", True),
+        "daemonsets": ("DaemonSet", True),
     },
-    "status": {
-        "phase": "Running",
-        "conditions": [
-            {"type": "Initialized", "status": "True", "lastProbeTime": None,
-             "lastTransitionTime": "2026-08-20T03:32:11Z"},
-            {"type": "Ready", "status": "False", "reason": "ContainersNotReady",
-             "message": "Containers with unready status: [api]",
-             "lastTransitionTime": "2026-08-20T03:34:02Z"},
-            {"type": "ContainersReady", "status": "False", "reason": "ContainersNotReady",
-             "lastTransitionTime": "2026-08-20T03:34:02Z"},
-            {"type": "PodScheduled", "status": "True",
-             "lastTransitionTime": "2026-08-20T03:32:11Z"},
-        ],
-        "containerStatuses": [{
-            "name": "api",
-            "state": {
-                "waiting": {
-                    "reason": "CrashLoopBackOff",
-                    "message": "back-off 5m0s restarting failed container=api "
-                               "pod=payment-api-7c4f5b-x9qkl_payment-prod",
-                }
-            },
-            "lastState": {
-                "terminated": {
-                    "exitCode": 1,
-                    "reason": "Error",
-                    "message": "Error: ImagePullBackOff: "
-                               "Back-off pulling image \"registry.io/payments/api:1.4.2\"",
-                    "startedAt": "2026-08-20T03:33:58Z",
-                    "finishedAt": "2026-08-20T03:34:00Z",
-                    "containerID": "containerd://a1b2c3d4e5f6",
-                }
-            },
-            "ready": False,
-            "restartCount": 7,
-            "image": "registry.io/payments/api:1.4.2",
-            "imageID": "",
-            "containerID": "containerd://a1b2c3d4e5f6",
-        }],
-        "qosClass": "Burstable",
+    ("networking.k8s.io", "v1"): {
+        "ingresses": ("Ingress", True),
+        "ingressclasses": ("IngressClass", False),
+    },
+    ("storage.k8s.io", "v1"): {
+        "storageclasses": ("StorageClass", False),
+    },
+    ("batch", "v1"): {
+        "jobs": ("Job", True),
+        "cronjobs": ("CronJob", True),
+    },
+    ("admissionregistration.k8s.io", "v1"): {
+        "validatingwebhookconfigurations": ("ValidatingWebhookConfiguration", False),
+        "mutatingwebhookconfigurations": ("MutatingWebhookConfiguration", False),
     },
 }
 
-PAYMENT_WORKER_POD = {
-    "apiVersion": "v1",
-    "kind": "Pod",
-    "metadata": {
-        "name": "payment-worker-6d8b2c-p3mnr",
-        "namespace": "payment-prod",
-        "uid": UID_BASE + "-02",
-        "creationTimestamp": "2026-08-20T03:30:00Z",
-        "labels": {"app": "payment-worker", "pod-template-hash": "6d8b2c"},
-        "ownerReferences": [{
-            "apiVersion": "apps/v1",
-            "kind": "ReplicaSet",
-            "name": "payment-worker-6d8b2c",
-            "uid": UID_BASE + "-rs2",
-            "controller": True,
-        }],
-    },
-    "spec": {
-        "containers": [{
-            "name": "worker",
-            "image": "registry.io/payments/worker:2.1.0",
-            "resources": {
-                "requests": {"cpu": "50m", "memory": "64Mi"},
-                "limits": {"cpu": "100m", "memory": "96Mi"},  # too tight -> OOM
-            },
-        }],
-        "nodeName": "worker-1",
-    },
-    "status": {
-        "phase": "Running",
-        "conditions": [
-            {"type": "Initialized", "status": "True"},
-            {"type": "Ready", "status": "False", "reason": "ContainersNotReady"},
-            {"type": "ContainersReady", "status": "False", "reason": "ContainersNotReady"},
-            {"type": "PodScheduled", "status": "True"},
-        ],
-        "containerStatuses": [{
-            "name": "worker",
-            "state": {"waiting": {"reason": "CrashLoopBackOff",
-                                 "message": "back-off 2m0s restarting failed container=worker"}},
-            "lastState": {
-                "terminated": {
-                    "exitCode": 137,  # OOMKilled
-                    "reason": "OOMKilled",
-                    "message": "container killed by OOMKilled",
-                    "startedAt": "2026-08-20T03:31:00Z",
-                    "finishedAt": "2026-08-20T03:31:42Z",
-                    "containerID": "containerd://b2c3d4e5f6a7",
-                }
-            },
-            "ready": False,
-            "restartCount": 12,
-            "image": "registry.io/payments/worker:2.1.0",
-            "imageID": "registry.io/payments/worker@sha256:abc123",
-            "containerID": "containerd://b2c3d4e5f6a7",
-        }],
-        "qosClass": "Burstable",
-    },
+SHORT_NAMES = {
+    "pods": ["po"], "services": ["svc"], "namespaces": ["ns"], "nodes": ["no"],
+    "configmaps": ["cm"], "persistentvolumeclaims": ["pvc"],
+    "persistentvolumes": ["pv"], "events": ["ev"], "endpoints": ["ep"],
+    "deployments": ["deploy"], "replicasets": ["rs"], "statefulsets": ["sts"],
+    "daemonsets": ["ds"], "ingresses": ["ing"], "storageclasses": ["sc"],
+    "cronjobs": ["cj"],
 }
 
-# Deployments
-PAYMENT_API_DEPLOY = {
-    "apiVersion": "apps/v1",
-    "kind": "Deployment",
-    "metadata": {
-        "name": "payment-api",
-        "namespace": "payment-prod",
-        "uid": UID_BASE + "-dep1",
-        "creationTimestamp": "2026-08-20T03:30:00Z",
-        "labels": {"app": "payment-api"},
-        "annotations": {"deployment.kubernetes.io/revision": "3"},
-    },
-    "spec": {
-        "replicas": 1,
-        "selector": {"matchLabels": {"app": "payment-api"}},
-        "template": {
-            "metadata": {"labels": {"app": "payment-api"}},
-            "spec": PAYMENT_API_POD["spec"],
-        },
-    },
-    "status": {
-        "observedGeneration": 3,
-        "replicas": 1,
-        "updatedReplicas": 1,
-        "readyReplicas": 0,
-        "availableReplicas": 0,
-        "unavailableReplicas": 1,
-        "conditions": [
-            {"type": "Available", "status": "False", "reason": "MinimumReplicasUnavailable",
-             "message": "Deployment does not have minimum availability.",
-             "lastTransitionTime": "2026-08-20T03:34:00Z"},
-            {"type": "Progressing", "status": "False", "reason": "ProgressDeadlineExceeded",
-             "message": "ReplicaSet \"payment-api-7c4f5b\" has timed out progressing.",
-             "lastTransitionTime": "2026-08-20T03:44:00Z"},
-        ],
-    },
-}
-
-PAYMENT_WORKER_DEPLOY = {
-    "apiVersion": "apps/v1",
-    "kind": "Deployment",
-    "metadata": {
-        "name": "payment-worker",
-        "namespace": "payment-prod",
-        "uid": UID_BASE + "-dep2",
-        "creationTimestamp": "2026-08-20T03:30:00Z",
-        "labels": {"app": "payment-worker"},
-    },
-    "spec": {
-        "replicas": 1,
-        "selector": {"matchLabels": {"app": "payment-worker"}},
-        "template": {
-            "metadata": {"labels": {"app": "payment-worker"}},
-            "spec": PAYMENT_WORKER_POD["spec"],
-        },
-    },
-    "status": {
-        "observedGeneration": 2,
-        "replicas": 1,
-        "updatedReplicas": 1,
-        "readyReplicas": 0,
-        "availableReplicas": 0,
-        "unavailableReplicas": 1,
-        "conditions": [
-            {"type": "Available", "status": "False", "reason": "MinimumReplicasUnavailable"},
-            {"type": "Progressing", "status": "False", "reason": "ProgressDeadlineExceeded"},
-        ],
-    },
-}
-
-# ReplicaSets
-PAYMENT_API_RS = {
-    "apiVersion": "apps/v1",
-    "kind": "ReplicaSet",
-    "metadata": {
-        "name": "payment-api-7c4f5b",
-        "namespace": "payment-prod",
-        "uid": UID_BASE + "-rs",
-        "creationTimestamp": "2026-08-20T03:32:00Z",
-        "labels": {"app": "payment-api", "pod-template-hash": "7c4f5b"},
-        "ownerReferences": [{
-            "apiVersion": "apps/v1", "kind": "Deployment",
-            "name": "payment-api", "uid": UID_BASE + "-dep1",
-            "controller": True,
-        }],
-    },
-    "spec": {
-        "replicas": 1,
-        "selector": {"matchLabels": {"app": "payment-api", "pod-template-hash": "7c4f5b"}},
-    },
-    "status": {
-        "observedGeneration": 1,
-        "replicas": 1,
-        "fullyLabeledReplicas": 1,
-        "readyReplicas": 0,
-        "availableReplicas": 0,
-    },
-}
-
-PAYMENT_WORKER_RS = {
-    "apiVersion": "apps/v1",
-    "kind": "ReplicaSet",
-    "metadata": {
-        "name": "payment-worker-6d8b2c",
-        "namespace": "payment-prod",
-        "uid": UID_BASE + "-rs2",
-        "creationTimestamp": "2026-08-20T03:30:00Z",
-        "labels": {"app": "payment-worker", "pod-template-hash": "6d8b2c"},
-        "ownerReferences": [{
-            "apiVersion": "apps/v1", "kind": "Deployment",
-            "name": "payment-worker", "uid": UID_BASE + "-dep2",
-            "controller": True,
-        }],
-    },
-    "spec": {
-        "replicas": 1,
-        "selector": {"matchLabels": {"app": "payment-worker", "pod-template-hash": "6d8b2c"}},
-    },
-    "status": {"replicas": 1, "readyReplicas": 0, "availableReplicas": 0},
-}
-
-# Services - payment-api-svc has wrong selector (no matching pods => no endpoints)
-PAYMENT_API_SVC = {
-    "apiVersion": "v1",
-    "kind": "Service",
-    "metadata": {
-        "name": "payment-api-svc",
-        "namespace": "payment-prod",
-        "uid": UID_BASE + "-svc1",
-        "creationTimestamp": "2026-08-20T03:30:00Z",
-        "labels": {"app": "payment-api"},
-    },
-    "spec": {
-        "ports": [{"name": "http", "port": 80, "targetPort": 8080, "protocol": "TCP"}],
-        "selector": {"app": "payment-api-frontend"},  # MISMATCH - no pod has this label
-        "clusterIP": "10.96.34.12",
-        "type": "ClusterIP",
-        "sessionAffinity": "None",
-    },
-    "status": {"loadBalancer": {}},
-}
-
-# Endpoints for payment-api-svc - EMPTY because selector matches nothing
-PAYMENT_API_ENDPOINTS = {
-    "apiVersion": "v1",
-    "kind": "Endpoints",
-    "metadata": {"name": "payment-api-svc", "namespace": "payment-prod",
-                 "uid": UID_BASE + "-ep1"},
-    "subsets": [],  # empty - no backing pods
-}
-
-# PVC pending (no storage class found)
-PAYMENT_PVC = {
-    "apiVersion": "v1",
-    "kind": "PersistentVolumeClaim",
-    "metadata": {
-        "name": "payment-data-pvc",
-        "namespace": "payment-prod",
-        "uid": UID_BASE + "-pvc1",
-        "creationTimestamp": "2026-08-20T03:25:00Z",
-        "labels": {"app": "payment-api"},
-        "annotations": {"volume.beta.kubernetes.io/storage-provisioner": "standard"},
-    },
-    "spec": {
-        "accessModes": ["ReadWriteOnce"],
-        "resources": {"requests": {"storage": "10Gi"}},
-        "storageClassName": "standard",  # not registered on cluster
-        "volumeMode": "Filesystem",
-    },
-    "status": {
-        "phase": "Pending",
-        "conditions": [
-            {"type": "FileSystemResizePending", "status": "True"},
-            {"type": "Ready", "status": "False", "reason": "ProvisioningFailed"},
-        ],
-    },
-}
-
-# Ingress pointing at a non-existent service
-PAYMENT_INGRESS = {
-    "apiVersion": "networking.k8s.io/v1",
-    "kind": "Ingress",
-    "metadata": {
-        "name": "payment-ingress",
-        "namespace": "payment-prod",
-        "uid": UID_BASE + "-ing1",
-        "creationTimestamp": "2026-08-20T03:25:00Z",
-        "labels": {"app": "payment"},
-    },
-    "spec": {
-        "ingressClassName": "nginx",
-        "rules": [{
-            "host": "pay.internal.acme.io",
-            "http": {
-                "paths": [{
-                    "path": "/",
-                    "pathType": "Prefix",
-                    "backend": {
-                        "service": {
-                            "name": "payment-frontend",  # DOES NOT EXIST
-                            "port": {"number": 80},
-                        }
-                    },
-                }],
-            },
-        }],
-    },
-    "status": {"loadBalancer": {"ingress": [{"ip": "10.96.34.50"}]}},
-}
-
-# Nodes - worker-3 has DiskPressure
-NODE_WORKER_1 = {
-    "apiVersion": "v1",
-    "kind": "Node",
-    "metadata": {
-        "name": "worker-1",
-        "uid": UID_BASE + "-n1",
-        "creationTimestamp": "2026-08-15T08:00:00Z",
-        "labels": {
-            "kubernetes.io/hostname": "worker-1",
-            "kubernetes.io/os": "linux",
-            "kubernetes.io/arch": "amd64",
-            "node-role.kubernetes.io/worker": "",
-        },
-    },
-    "spec": {
-        "podCIDR": "10.244.1.0/24",
-        "providerID": "kind://docker/kind/kind-worker-1",
-    },
-    "status": {
-        "conditions": [
-            {"type": "Ready", "status": "True", "lastTransitionTime": "2026-08-15T08:00:30Z"},
-            {"type": "MemoryPressure", "status": "False"},
-            {"type": "DiskPressure", "status": "False"},
-            {"type": "PIDPressure", "status": "False"},
-            {"type": "NetworkUnavailable", "status": "False"},
-        ],
-        "capacity": {"cpu": "4", "memory": "8Gi", "pods": "110"},
-        "allocatable": {"cpu": "3500m", "memory": "7Gi", "pods": "110"},
-        "addresses": [{"type": "InternalIP", "address": "172.18.0.2"}],
-        "nodeInfo": {
-            "machineID": "x", "systemUUID": "x", "bootID": "x",
-            "kernelVersion": "5.10.134",
-            "osImage": "Ubuntu 22.04.4 LTS",
-            "containerRuntimeVersion": "containerd://1.7.18",
-            "kubeletVersion": "v1.30.0",
-            "architecture": "amd64",
-            "operatingSystem": "linux",
-        },
-    },
-}
-
-NODE_WORKER_3 = {
-    "apiVersion": "v1",
-    "kind": "Node",
-    "metadata": {
-        "name": "worker-3",
-        "uid": UID_BASE + "-n3",
-        "creationTimestamp": "2026-08-15T08:00:00Z",
-        "labels": {
-            "kubernetes.io/hostname": "worker-3",
-            "kubernetes.io/os": "linux",
-            "kubernetes.io/arch": "amd64",
-            "node-role.kubernetes.io/worker": "",
-        },
-    },
-    "spec": {
-        "podCIDR": "10.244.3.0/24",
-        "providerID": "kind://docker/kind/kind-worker-3",
-    },
-    "status": {
-        "conditions": [
-            {"type": "Ready", "status": "True", "lastTransitionTime": "2026-08-15T08:00:30Z"},
-            {"type": "MemoryPressure", "status": "False"},
-            {"type": "DiskPressure", "status": "True",  # DISK PRESSURE!
-             "reason": "KubeletHasNoDiskSpace",
-             "message": "kubelet has disk pressure",
-             "lastTransitionTime": "2026-08-20T03:50:00Z"},
-            {"type": "PIDPressure", "status": "False"},
-            {"type": "NetworkUnavailable", "status": "False"},
-        ],
-        "capacity": {"cpu": "4", "memory": "8Gi", "pods": "110"},
-        "allocatable": {"cpu": "3500m", "memory": "7Gi", "pods": "110"},
-        "addresses": [{"type": "InternalIP", "address": "172.18.0.4"}],
-        "nodeInfo": NODE_WORKER_1["status"]["nodeInfo"],
-    },
-}
-
-# Events - correlated with the broken resources above
-EVENTS = [
-    {
-        "metadata": {"name": "payment-api-7c4f5b-x9qkl.17a4", "namespace": "payment-prod",
-                     "uid": UID_BASE + "-ev1"},
-        "involvedObject": {"kind": "Pod", "namespace": "payment-prod",
-                           "name": "payment-api-7c4f5b-x9qkl",
-                           "uid": UID_BASE + "-01", "apiVersion": "v1"},
-        "reason": "Failed",
-        "message": "Error: ImagePullBackOff: Back-off pulling image "
-                   "\"registry.io/payments/api:1.4.2\"",
-        "source": {"component": "kubelet", "host": "worker-1"},
-        "firstTimestamp": "2026-08-20T03:33:00Z",
-        "lastTimestamp": "2026-08-20T03:58:00Z",
-        "count": 7,
-        "type": "Warning",
-    },
-    {
-        "metadata": {"name": "payment-worker-6d8b2c-p3mnr.17b1", "namespace": "payment-prod"},
-        "involvedObject": {"kind": "Pod", "namespace": "payment-prod",
-                           "name": "payment-worker-6d8b2c-p3mnr",
-                           "uid": UID_BASE + "-02", "apiVersion": "v1"},
-        "reason": "BackOff",
-        "message": "Back-off restarting failed container",
-        "source": {"component": "kubelet", "host": "worker-1"},
-        "firstTimestamp": "2026-08-20T03:32:00Z",
-        "lastTimestamp": "2026-08-20T03:58:00Z",
-        "count": 12,
-        "type": "Warning",
-    },
-    {
-        "metadata": {"name": "payment-worker-6d8b2c-p3mnr.17b2", "namespace": "payment-prod"},
-        "involvedObject": {"kind": "Pod", "namespace": "payment-prod",
-                           "name": "payment-worker-6d8b2c-p3mnr", "apiVersion": "v1"},
-        "reason": "Killing",
-        "message": "Container worker was OOMKilled (exit code 137)",
-        "source": {"component": "kubelet", "host": "worker-1"},
-        "firstTimestamp": "2026-08-20T03:31:42Z",
-        "lastTimestamp": "2026-08-20T03:58:00Z",
-        "count": 12,
-        "type": "Warning",
-    },
-    {
-        "metadata": {"name": "payment-data-pvc.17c0", "namespace": "payment-prod"},
-        "involvedObject": {"kind": "PersistentVolumeClaim", "namespace": "payment-prod",
-                           "name": "payment-data-pvc", "apiVersion": "v1"},
-        "reason": "ProvisioningFailed",
-        "message": "storageclass.storage.k8s.io \"standard\" not found",
-        "source": {"component": "persistent-volume-controller"},
-        "firstTimestamp": "2026-08-20T03:25:05Z",
-        "lastTimestamp": "2026-08-20T03:58:00Z",
-        "count": 30,
-        "type": "Warning",
-    },
-    {
-        "metadata": {"name": "worker-3.17d0", "namespace": "default"},
-        "involvedObject": {"kind": "Node", "name": "worker-3", "apiVersion": "v1"},
-        "reason": "NodeHasDiskPressure",
-        "message": "Node worker-3 status is now: NodeHasDiskPressure",
-        "source": {"component": "kubelet", "host": "worker-3"},
-        "firstTimestamp": "2026-08-20T03:50:00Z",
-        "lastTimestamp": "2026-08-20T03:58:00Z",
-        "count": 9,
-        "type": "Warning",
-    },
-    {
-        "metadata": {"name": "payment-api-deploy.17e0", "namespace": "payment-prod"},
-        "involvedObject": {"kind": "Deployment", "namespace": "payment-prod",
-                           "name": "payment-api", "apiVersion": "apps/v1"},
-        "reason": "DeploymentProgressing",
-        "message": "ReplicaSet \"payment-api-7c4f5b\" has timed out progressing.",
-        "source": {"component": "deployment-controller"},
-        "firstTimestamp": "2026-08-20T03:44:00Z",
-        "lastTimestamp": "2026-08-20T03:44:00Z",
-        "count": 1,
-        "type": "Warning",
-    },
-]
-
-# Namespaces
-NAMESPACES = ["default", "kube-system", "payment-prod", "ingress-nginx"]
-
-NAMESPACES_LIST = {
-    "apiVersion": "v1",
-    "kind": "NamespaceList",
-    "items": [{
-        "apiVersion": "v1", "kind": "Namespace",
-        "metadata": {"name": n, "uid": UID_BASE + f"-ns-{i}",
-                     "creationTimestamp": "2026-08-15T08:00:00Z"},
-        "spec": {"finalizers": ["kubernetes"]},
-        "status": {"phase": "Active"},
-    } for i, n in enumerate(NAMESPACES)],
-}
-
-# StorageClasses (none - to make PVC Pending realistic)
-STORAGE_CLASS_LIST = {
-    "apiVersion": "storage.k8s.io/v1",
-    "kind": "StorageClassList",
-    "items": [],
-}
-
-# API versions
-API_VERSIONS = {
-    "kind": "APIVersions", "versions": [
-        "v1", "apps/v1", "networking.k8s.io/v1", "batch/v1",
-        "storage.k8s.io/v1", "apiextensions.k8s.io/v1",
-    ], "serverAddressByClientCIDRs": [],
-}
-
-# API resource discovery - what each group/version serves
-API_V1_RESOURCES = ["pods", "services", "endpoints", "namespaces", "events",
-                    "nodes", "persistentvolumeclaims", "configmaps", "secrets"]
-APPS_V1_RESOURCES = ["deployments", "replicasets", "statefulsets", "daemonsets"]
-NETWORKING_V1_RESOURCES = ["ingresses"]
-BATCH_V1_RESOURCES = ["jobs", "cronjobs"]
-
-# Map plural resource name -> Kind (handles irregular plurals like Endpoints, Ingress)
-RESOURCE_KIND = {
-    "pods": "Pod", "services": "Service", "endpoints": "Endpoints",
-    "namespaces": "Namespace", "events": "Event", "nodes": "Node",
-    "persistentvolumeclaims": "PersistentVolumeClaim",
-    "configmaps": "ConfigMap", "secrets": "Secret",
-    "deployments": "Deployment", "replicasets": "ReplicaSet",
-    "statefulsets": "StatefulSet", "daemonsets": "DaemonSet",
-    "ingresses": "Ingress", "jobs": "Job", "cronjobs": "CronJob",
-    "storageclasses": "StorageClass",
-}
-RESOURCE_SHORT = {
-    "pods": "po", "services": "svc", "namespaces": "ns",
-    "nodes": "no", "configmaps": "cm",
-    "persistentvolumeclaims": "pvc", "events": "ev", "endpoints": "ep",
-    "deployments": "deploy", "replicasets": "rs",
-    "statefulsets": "sts", "daemonsets": "ds",
-    "ingresses": "ing",
-}
-
-# ---------- Routing ----------
-
-PODS = [PAYMENT_API_POD, PAYMENT_WORKER_POD]
-DEPLOYMENTS = [PAYMENT_API_DEPLOY, PAYMENT_WORKER_DEPLOY]
-REPLICASETS = [PAYMENT_API_RS, PAYMENT_WORKER_RS]
-SERVICES = [PAYMENT_API_SVC]
-ENDPOINTS = [PAYMENT_API_ENDPOINTS]
-PVCS = [PAYMENT_PVC]
-INGRESSES = [PAYMENT_INGRESS]
-NODES = [NODE_WORKER_1, NODE_WORKER_3]
-
-CONFIGMAP_DEFAULT = {
-    "apiVersion": "v1", "kind": "ConfigMap",
-    "metadata": {"name": "cluster-config", "namespace": "default",
-                 "uid": UID_BASE + "-cm1",
-                 "creationTimestamp": "2026-08-15T08:00:00Z"},
-    "data": {"environment": "production", "region": "us-east-1"},
-}
+GROUP_VERSION = {g: v for (g, v) in GROUPS}
 
 
-def list_wrap(items, kind):
-    api_ver = "v1"
-    if items:
-        api_ver = items[0].get("apiVersion", "v1")
-    return {
-        "apiVersion": api_ver,
-        "kind": kind,
-        "metadata": {"resourceVersion": "184523", "continue": ""},
-        "items": items,
-    }
+def log(msg):
+    print(f"[mock-k8s] {msg}", file=sys.stderr, flush=True)
 
 
-def apps_list(items, kind):
-    return {"apiVersion": "apps/v1", "kind": kind,
-            "metadata": {"resourceVersion": "184523"},
-            "items": items}
+def _pb_string_field(number: int, value: str) -> bytes:
+    """Encode one length-delimited protobuf string field."""
+    payload = value.encode("utf-8")
+    return bytes([(number << 3) | 2]) + _pb_varint(len(payload)) + payload
 
 
-def net_list(items, kind):
-    return {"apiVersion": "networking.k8s.io/v1", "kind": kind,
-            "metadata": {"resourceVersion": "184523"},
-            "items": items}
+def _pb_message_field(number: int, payload: bytes) -> bytes:
+    return bytes([(number << 3) | 2]) + _pb_varint(len(payload)) + payload
 
 
-def storage_list(items, kind):
-    return {"apiVersion": "storage.k8s.io/v1", "kind": kind,
-            "metadata": {"resourceVersion": "184523"},
-            "items": items}
+def _pb_varint(value: int) -> bytes:
+    out = bytearray()
+    while True:
+        byte = value & 0x7F
+        value >>= 7
+        out.append(byte | (0x80 if value else 0))
+        if not value:
+            return bytes(out)
 
 
-def filter_by_namespace(items, ns):
-    if ns is None or ns == "":
+def _openapi_v2_protobuf() -> bytes:
+    """Hand-encode gnostic openapi_v2.Document{swagger, info{title, version}}.
+
+    Document.swagger = 1, Document.info = 2;
+    Info.title = 1, Info.version = 6.
+    """
+    info = _pb_string_field(1, "Kubernetes") + _pb_string_field(6, "v1.30.0")
+    return _pb_string_field(1, "2.0") + _pb_message_field(2, info)
+
+
+def _dig(obj, dotted):
+    """Resolve a dotted field path against a nested dict."""
+    node = obj
+    for part in dotted.split("."):
+        if not isinstance(node, dict):
+            return None
+        node = node.get(part)
+    return node
+
+
+def apply_field_selector(items, selector):
+    """Filter a list by a Kubernetes fieldSelector expression.
+
+    k8sgpt relies on this for real: its PVC and event lookups pass
+    `involvedObject.name=<name>`, and an apiserver that silently ignored the
+    selector would hand every analyzer the whole namespace's events and
+    produce garbage findings. Supports `=`, `==` and `!=`, comma-joined.
+    """
+    if not selector:
         return items
-    return [i for i in items if i.get("metadata", {}).get("namespace") == ns]
+    for clause in selector.split(","):
+        clause = clause.strip()
+        if not clause:
+            continue
+        if "!=" in clause:
+            field, _, want = clause.partition("!=")
+            items = [i for i in items if str(_dig(i, field.strip())) != want.strip()]
+        elif "==" in clause:
+            field, _, want = clause.partition("==")
+            items = [i for i in items if str(_dig(i, field.strip())) == want.strip()]
+        elif "=" in clause:
+            field, _, want = clause.partition("=")
+            items = [i for i in items if str(_dig(i, field.strip())) == want.strip()]
+    return items
+
+
+def apply_label_selector(items, selector):
+    """Filter by an equality-based labelSelector (`k=v,k2=v2`)."""
+    if not selector:
+        return items
+    for clause in selector.split(","):
+        clause = clause.strip()
+        if not clause or "=" not in clause:
+            continue
+        key, _, want = clause.partition("=")
+        key, want = key.strip().rstrip("!"), want.strip()
+        items = [i for i in items
+                 if i.get("metadata", {}).get("labels", {}).get(key) == want]
+    return items
+
+
+def _plural_for(group, plural):
+    for (g, _v), resources in GROUPS.items():
+        if g == group and plural in resources:
+            return resources[plural]
+    return None
+
+
+def _list_kind(group, plural):
+    info = _plural_for(group, plural)
+    return (info[0] if info else plural.capitalize()) + "List"
+
+
+def _api_version(group):
+    if group == "":
+        return "v1"
+    return f"{group}/{GROUP_VERSION.get(group, 'v1')}"
 
 
 class MockK8sHandler(BaseHTTPRequestHandler):
-    server_version = "MockKubeAPI/1.0"
-    sys_version = "Python/3.12"
-    protocol_version = "HTTP/1.1"  # support keep-alive
-    timeout = 30  # per-request timeout
+    server_version = "MockKubeAPI/2.0"
+    sys_version = "Python/3"
+    protocol_version = "HTTP/1.1"
+    timeout = 30
+    query = {}
+
+    # ---- plumbing ----------------------------------------------------------
 
     def _send_json(self, obj, code=200):
         body = json.dumps(obj).encode("utf-8")
         self.send_response(code)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(body)))
-        self.send_header("Date", "Tue, 20 Aug 2026 04:00:00 GMT")
-        # Explicitly set Connection: close to avoid keep-alive weirdness
         self.send_header("Connection", "close")
         self.end_headers()
         self.wfile.write(body)
 
-    def _send_status(self):
-        # /readyz / livez / healthz
-        self._send_json({"kind": "Status", "apiVersion": "v1",
-                         "status": "Success", "message": "ok",
-                         "reason": "ServerStatus"})
+    def _status(self, code, reason, message):
+        self._send_json({"kind": "Status", "apiVersion": "v1", "status": "Failure",
+                         "code": code, "reason": reason, "message": message}, code)
+
+    def _not_found(self, message):
+        self._status(404, "NotFound", message)
+
+    def _read_body(self):
+        length = int(self.headers.get("Content-Length", 0) or 0)
+        if not length:
+            return {}
+        raw = self.rfile.read(length)
+        try:
+            return json.loads(raw)
+        except Exception:
+            return {}
+
+    def log_message(self, *args, **kwargs):
+        pass
+
+    # ---- verbs -------------------------------------------------------------
 
     def do_GET(self):
-        path = self.path.split("?")[0]
-        # strip api group prefix
-        log(f"GET {path}")
+        self._dispatch("GET")
+
+    def do_HEAD(self):
+        self._send_json({"kind": "Status", "apiVersion": "v1", "status": "Success"})
+
+    def do_POST(self):
+        self._dispatch("POST")
+
+    def do_PUT(self):
+        self._dispatch("PUT")
+
+    def do_PATCH(self):
+        self._dispatch("PATCH")
+
+    def do_DELETE(self):
+        self._dispatch("DELETE")
+
+    def _dispatch(self, method):
+        raw = self.path
+        path = raw.split("?")[0].rstrip("/") or "/"
+        self.query = parse_qs(urlparse(raw).query)
+        log(f"{method} {path}")
         try:
-            self._route(path)
-        except BrokenPipeError:
+            self._route(method, path)
+        except (BrokenPipeError, ConnectionResetError):
             pass
-        except ConnectionResetError:
-            pass
-        except Exception as e:
-            log(f"ERROR routing {path}: {e}")
+        except Exception as exc:  # pragma: no cover - defensive
+            log(f"ERROR {method} {path}: {type(exc).__name__}: {exc}")
             try:
-                self._send_json({"kind": "Status", "apiVersion": "v1",
-                                 "status": "Failure", "code": 500, "message": str(e)}, 500)
+                self._status(500, "InternalError", str(exc))
             except Exception:
                 pass
 
-    def do_HEAD(self):
-        self._send_json({"kind": "Status", "apiVersion": "v1", "status": "Success"}, 200)
+    # ---- routing -----------------------------------------------------------
 
-    def _route(self, path):
-        # Health endpoints
+    def _route(self, method, path):
+        if self._route_meta(method, path):
+            return
+        if self._route_discovery(method, path):
+            return
+        if self._route_namespaces(method, path):
+            return
+        return self._route_resource(method, path)
+
+    def _route_meta(self, method, path):
+        """Health, version, and the /_demo/* helpers."""
         if path in ("/readyz", "/livez", "/healthz", "/version"):
-            return self._send_status()
+            if path == "/version":
+                self._send_json({
+                    "major": "1", "minor": "30", "gitVersion": "v1.30.0-mock",
+                    "gitCommit": "mock", "platform": "linux/amd64",
+                })
+            else:
+                self._send_json({"kind": "Status", "apiVersion": "v1",
+                                 "status": "Success", "message": "ok",
+                                 "reason": "ServerStatus"})
+            return True
+        if path == "/_demo/health":
+            self._send_json(STATE.health_summary())
+            return True
+        if path == "/_demo/rules":
+            self._send_json({"rules": [
+                {"finding": f, "trigger": t, "effect": e}
+                for f, t, e in RECONCILER_RULES]})
+            return True
+        if path == "/_demo/remediations":
+            self._send_json({"applied": STATE.remediation_log})
+            return True
+        if path == "/_demo/reset":
+            if method != "POST":
+                self._status(405, "MethodNotAllowed", "POST /_demo/reset")
+                return True
+            STATE.reset()
+            self._send_json({"reset": True, "state": STATE.health_summary()})
+            return True
+        if path.startswith("/openapi/"):
+            # kubectl >=1.27 validates `apply`/`create -f` against OpenAPI v3.
+            # It needs a real index at /openapi/v3 plus a fetchable (if
+            # schema-less) document per group-version, otherwise every write
+            # from a manifest dies with "error validating data". v2 is served
+            # as protobuf by a real apiserver, so we simply refuse it.
+            if path == "/openapi/v3":
+                index = {}
+                for (group, version) in GROUPS:
+                    key = "api/v1" if group == "" else f"apis/{group}/{version}"
+                    index[key] = {"serverRelativeURL": f"/openapi/v3/{key}?hash=mock"}
+                self._send_json({"paths": index})
+            elif path.startswith("/openapi/v3/"):
+                self._send_json(self._openapi_doc(path))
+            elif path == "/openapi/v2":
+                self._send_openapi_v2()
+            else:
+                self._status(404, "NotFound", f"no openapi document at {path}")
+            return True
+        return False
 
+    def _route_discovery(self, method, path):
         if path == "/api":
-            return self._send_json({"kind": "APIVersions",
-                                   "versions": ["v1"],
-                                   "serverAddressByClientCIDRs": []})
-
-        if path == "/api/v1":
-            # Some core resources are cluster-scoped (nodes, namespaces, persistentvolumes)
-            cluster_scoped = {"nodes", "namespaces", "persistentvolumes"}
-            res = []
-            for r in API_V1_RESOURCES:
-                entry = {
-                    "name": r,
-                    "singularName": r[:-1] if r.endswith("s") else r,
-                    "namespaced": r not in cluster_scoped,
-                    "kind": RESOURCE_KIND.get(r, r[:-1].capitalize()),
-                    "verbs": ["get", "list", "watch"],
-                }
-                if RESOURCE_SHORT.get(r):
-                    entry["shortNames"] = [RESOURCE_SHORT[r]]
-                res.append(entry)
-            return self._send_json({"kind": "APIResourceList", "apiVersion": "v1",
-                                    "groupVersion": "v1", "resources": res})
-
+            self._send_json({"kind": "APIVersions", "versions": ["v1"],
+                             "serverAddressByClientCIDRs": []})
+            return True
         if path == "/apis":
-            return self._send_json({"kind": "APIGroupList", "groups": [
-                {"name": "apps", "versions": [{"groupVersion": "apps/v1", "version": "v1"}],
-                 "preferredVersion": {"groupVersion": "apps/v1", "version": "v1"}},
-                {"name": "networking.k8s.io",
-                 "versions": [{"groupVersion": "networking.k8s.io/v1", "version": "v1"}],
-                 "preferredVersion": {"groupVersion": "networking.k8s.io/v1", "version": "v1"}},
-                {"name": "storage.k8s.io",
-                 "versions": [{"groupVersion": "storage.k8s.io/v1", "version": "v1"}],
-                 "preferredVersion": {"groupVersion": "storage.k8s.io/v1", "version": "v1"}},
-                {"name": "batch",
-                 "versions": [{"groupVersion": "batch/v1", "version": "v1"}],
-                 "preferredVersion": {"groupVersion": "batch/v1", "version": "v1"}},
-                {"name": "admissionregistration.k8s.io",
-                 "versions": [{"groupVersion": "admissionregistration.k8s.io/v1", "version": "v1"}],
-                 "preferredVersion": {"groupVersion": "admissionregistration.k8s.io/v1", "version": "v1"}},
-            ]})
+            groups = []
+            for (group, version) in GROUPS:
+                if group == "":
+                    continue
+                gv = f"{group}/{version}"
+                groups.append({
+                    "name": group,
+                    "versions": [{"groupVersion": gv, "version": version}],
+                    "preferredVersion": {"groupVersion": gv, "version": version},
+                })
+            self._send_json({"kind": "APIGroupList", "apiVersion": "v1",
+                             "groups": groups})
+            return True
+        if path == "/api/v1":
+            self._send_json(self._resource_list("", "v1"))
+            return True
+        parts = path.strip("/").split("/")
+        if len(parts) == 3 and parts[0] == "apis":
+            group, version = parts[1], parts[2]
+            if (group, version) in GROUPS:
+                self._send_json(self._resource_list(group, version))
+                return True
+        return False
 
-        # /apis/apps/v1
-        if path == "/apis/apps/v1":
-            res = []
-            for r in APPS_V1_RESOURCES:
-                entry = {"name": r, "namespaced": True,
-                         "kind": RESOURCE_KIND.get(r, r[:-1].capitalize()),
-                         "verbs": ["get", "list", "watch"]}
-                if RESOURCE_SHORT.get(r):
-                    entry["shortNames"] = [RESOURCE_SHORT[r]]
-                res.append(entry)
-            return self._send_json({"kind": "APIResourceList", "apiVersion": "v1",
-                                    "groupVersion": "apps/v1", "resources": res})
+    def _send_openapi_v2(self):
+        """Serve a minimal, *valid* gnostic protobuf OpenAPI v2 document.
 
-        # /apis/networking.k8s.io/v1
-        if path == "/apis/networking.k8s.io/v1":
-            res = []
-            for r in NETWORKING_V1_RESOURCES:
-                entry = {"name": r, "namespaced": True,
-                         "kind": RESOURCE_KIND.get(r, r[:-1].capitalize()),
-                         "verbs": ["get", "list", "watch"]}
-                if RESOURCE_SHORT.get(r):
-                    entry["shortNames"] = [RESOURCE_SHORT[r]]
-                res.append(entry)
-            return self._send_json({"kind": "APIResourceList", "apiVersion": "v1",
-                                    "groupVersion": "networking.k8s.io/v1", "resources": res})
+        kubectl's schema validator falls back to this endpoint whenever the
+        v3 document doesn't resolve a GVK, and it parses the body as protobuf
+        regardless of Content-Type — serving swagger JSON here is what
+        produced "proto: cannot parse invalid wire-format data" and broke
+        every `kubectl apply -f` against this mock. With no `definitions`,
+        kubectl's LookupResource returns nil and validation is skipped, which
+        is the correct behaviour for a server that doesn't publish schemas.
+        """
+        body = _openapi_v2_protobuf()
+        self.send_response(200)
+        self.send_header(
+            "Content-Type",
+            "application/com.github.proto-openapi.spec.v2+protobuf")
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Connection", "close")
+        self.end_headers()
+        self.wfile.write(body)
 
-        # /apis/storage.k8s.io/v1
-        if path == "/apis/storage.k8s.io/v1":
-            res = [{"name": "storageclasses", "namespaced": False,
-                     "kind": "StorageClass", "verbs": ["get", "list", "watch"]}]
-            return self._send_json({"kind": "APIResourceList", "apiVersion": "v1",
-                                    "groupVersion": "storage.k8s.io/v1", "resources": res})
+    @staticmethod
+    def _openapi_doc(path):
+        """A permissive but structurally real OpenAPI v3 document.
 
-        # === Core v1 collections ===
-        # /api/v1/namespaces
-        if path == "/api/v1/namespaces":
-            return self._send_json(NAMESPACES_LIST)
-        # /api/v1/namespaces/{ns}
-        if path.startswith("/api/v1/namespaces/") and path.count("/") == 3:
-            ns = path.split("/")[-1]
-            if ns in NAMESPACES:
-                return self._send_json({"apiVersion": "v1", "kind": "Namespace",
-                                        "metadata": {"name": ns, "uid": UID_BASE + "-ns-x",
-                                                     "creationTimestamp": "2026-08-15T08:00:00Z"},
-                                        "status": {"phase": "Active"}})
-            return self._send_404(f"namespaces \"{ns}\" not found")
+        kubectl resolves a manifest's schema by the
+        `x-kubernetes-group-version-kind` extension. If it finds no schema for
+        the GVK it falls back to the protobuf v2 endpoint, which a real
+        apiserver serves and this mock does not — so `apply` would fail. We
+        therefore emit one permissive object schema per GVK we serve, which is
+        enough for validation to succeed without pretending to model the whole
+        Kubernetes type system.
+        """
+        tail = path[len("/openapi/v3/"):]
+        if tail.startswith("apis/"):
+            bits = tail.split("/")
+            group, version = bits[1], bits[2] if len(bits) > 2 else "v1"
+        else:
+            group, version = "", "v1"
+        schemas = {}
+        for plural, (kind, _ns) in GROUPS.get((group, version), {}).items():
+            short = "core" if group == "" else group.split(".")[0]
+            schemas[f"io.k8s.api.{short}.{version}.{kind}"] = {
+                "type": "object",
+                "description": f"{kind} (mock schema)",
+                "x-kubernetes-group-version-kind": [
+                    {"group": group, "kind": kind, "version": version}],
+                "properties": {
+                    "apiVersion": {"type": "string"},
+                    "kind": {"type": "string"},
+                    "metadata": {"type": "object"},
+                },
+            }
+        return {
+            "openapi": "3.0.0",
+            "info": {"title": "Kubernetes", "version": "v1.30.0"},
+            "paths": {},
+            "components": {"schemas": schemas},
+        }
 
-        # /api/v1/namespaces/{ns}/pods
-        if path.startswith("/api/v1/namespaces/") and path.endswith("/pods"):
-            ns = path.split("/")[4]
-            items = filter_by_namespace(PODS, ns)
-            return self._send_json(list_wrap(items, "PodList"))
-        # /api/v1/pods  (cluster-wide)
-        if path == "/api/v1/pods":
-            return self._send_json(list_wrap(PODS, "PodList"))
-        # /api/v1/namespaces/{ns}/pods/{name}
-        if path.startswith("/api/v1/namespaces/") and "/pods/" in path:
-            ns = path.split("/")[4]
-            name = path.split("/")[-1]
-            for p in PODS:
-                if p["metadata"]["namespace"] == ns and p["metadata"]["name"] == name:
-                    return self._send_json(p)
-            return self._send_404(f"pods \"{name}\" not found")
+    def _resource_list(self, group, version):
+        gv = version if group == "" else f"{group}/{version}"
+        resources = []
+        for plural, (kind, namespaced) in GROUPS[(group, version)].items():
+            resources.append({
+                "name": plural,
+                "singularName": kind.lower(),
+                "namespaced": namespaced,
+                "kind": kind,
+                "verbs": VERBS,
+                "shortNames": SHORT_NAMES.get(plural, []),
+                "storageVersionHash": "mock",
+            })
+            # status subresource, so `kubectl patch --subresource=status` works
+            resources.append({
+                "name": f"{plural}/status",
+                "singularName": "",
+                "namespaced": namespaced,
+                "kind": kind,
+                "verbs": ["get", "patch", "update"],
+            })
+        return {"kind": "APIResourceList", "apiVersion": "v1",
+                "groupVersion": gv, "resources": resources}
 
-        # services
-        if path == "/api/v1/services":
-            return self._send_json(list_wrap(SERVICES, "ServiceList"))
-        if path.startswith("/api/v1/namespaces/") and path.endswith("/services"):
-            ns = path.split("/")[4]
-            items = filter_by_namespace(SERVICES, ns)
-            return self._send_json(list_wrap(items, "ServiceList"))
+    def _route_namespaces(self, method, path):
+        if path == "/api/v1/namespaces" and method == "GET":
+            items = [self._namespace_obj(n) for n in fx.NAMESPACES]
+            self._send_json({"apiVersion": "v1", "kind": "NamespaceList",
+                             "metadata": {"resourceVersion": str(STATE.resource_version)},
+                             "items": items})
+            return True
+        parts = path.strip("/").split("/")
+        # /api/v1/namespaces/{ns}  -> only when there is no trailing resource
+        if len(parts) == 4 and parts[:3] == ["api", "v1", "namespaces"]:
+            ns = parts[3]
+            if method == "GET":
+                if ns in fx.NAMESPACES:
+                    self._send_json(self._namespace_obj(ns))
+                else:
+                    self._not_found(f'namespaces "{ns}" not found')
+                return True
+        return False
 
-        # endpoints
-        if path == "/api/v1/endpoints":
-            return self._send_json(list_wrap(ENDPOINTS, "EndpointsList"))
-        if path.startswith("/api/v1/namespaces/") and path.endswith("/endpoints"):
-            ns = path.split("/")[4]
-            items = filter_by_namespace(ENDPOINTS, ns)
-            return self._send_json(list_wrap(items, "EndpointsList"))
+    @staticmethod
+    def _namespace_obj(name):
+        return {"apiVersion": "v1", "kind": "Namespace",
+                "metadata": {"name": name,
+                             "uid": f"{fx.UID_BASE}-ns-{name}",
+                             "creationTimestamp": "2026-08-15T08:00:00Z"},
+                "status": {"phase": "Active"}}
 
-        # events
-        if path == "/api/v1/events":
-            return self._send_json(list_wrap(EVENTS, "EventList"))
-        if path.startswith("/api/v1/namespaces/") and path.endswith("/events"):
-            ns = path.split("/")[4]
-            items = [e for e in EVENTS
-                     if e.get("involvedObject", {}).get("namespace") == ns]
-            return self._send_json(list_wrap(items, "EventList"))
+    # ---- generic resource routing -----------------------------------------
 
-        # nodes
-        if path == "/api/v1/nodes":
-            return self._send_json(list_wrap(NODES, "NodeList"))
-        if path.startswith("/api/v1/nodes/"):
-            name = path.split("/")[-1]
-            for n in NODES:
-                if n["metadata"]["name"] == name:
-                    return self._send_json(n)
-            return self._send_404(f"nodes \"{name}\" not found")
+    def _parse(self, path):
+        """Parse a Kubernetes resource path.
 
-        # pvcs
-        if path == "/api/v1/persistentvolumeclaims":
-            return self._send_json(list_wrap(PVCS, "PersistentVolumeClaimList"))
-        if path.startswith("/api/v1/namespaces/") and path.endswith("/persistentvolumeclaims"):
-            ns = path.split("/")[4]
-            items = filter_by_namespace(PVCS, ns)
-            return self._send_json(list_wrap(items, "PersistentVolumeClaimList"))
+        Returns (group, plural, namespace, name, subresource) or None.
+        """
+        parts = path.strip("/").split("/")
+        if parts and parts[0] == "api" and len(parts) >= 2 and parts[1] == "v1":
+            group, rest = "", parts[2:]
+        elif parts and parts[0] == "apis" and len(parts) >= 3:
+            group, rest = parts[1], parts[3:]
+        else:
+            return None
+        namespace = None
+        if rest[:1] == ["namespaces"] and len(rest) >= 3:
+            namespace = rest[1]
+            rest = rest[2:]
+        if not rest:
+            return None
+        plural = rest[0]
+        if _plural_for(group, plural) is None:
+            return None
+        name = rest[1] if len(rest) > 1 else None
+        subresource = rest[2] if len(rest) > 2 else None
+        return group, plural, namespace, name, subresource
 
-        # configmaps
-        if path == "/api/v1/configmaps":
-            return self._send_json(list_wrap([CONFIGMAP_DEFAULT], "ConfigMapList"))
-        if path.startswith("/api/v1/namespaces/") and path.endswith("/configmaps"):
-            ns = path.split("/")[4]
-            items = [CONFIGMAP_DEFAULT] if ns == "default" else []
-            return self._send_json(list_wrap(items, "ConfigMapList"))
+    def _route_resource(self, method, path):
+        parsed = self._parse(path)
+        if parsed is None:
+            log(f"UNHANDLED: {path}")
+            return self._not_found(f"resource not found: {path}")
+        group, plural, namespace, name, subresource = parsed
 
-        # secrets (empty)
-        if path == "/api/v1/secrets" or (
-                path.startswith("/api/v1/namespaces/") and path.endswith("/secrets")):
-            return self._send_json(list_wrap([], "SecretList"))
+        if name is None:
+            if method == "GET":
+                items = STATE.list(group, plural, namespace)
+                items = apply_field_selector(
+                    items, (self.query.get("fieldSelector") or [""])[0])
+                items = apply_label_selector(
+                    items, (self.query.get("labelSelector") or [""])[0])
+                return self._send_json({
+                    "apiVersion": _api_version(group),
+                    "kind": _list_kind(group, plural),
+                    "metadata": {"resourceVersion": str(STATE.resource_version),
+                                 "continue": ""},
+                    "items": items,
+                })
+            if method == "POST":
+                obj = self._read_body()
+                created, code = STATE.create(group, plural, namespace, obj)
+                if created is None:
+                    return self._status(409, "AlreadyExists",
+                                        f'{plural} "{obj.get("metadata", {}).get("name")}"'
+                                        " already exists")
+                return self._send_json(created, code)
+            return self._status(405, "MethodNotAllowed",
+                                f"{method} not allowed on collection {plural}")
 
-        # === apps/v1 ===
-        if path == "/apis/apps/v1/deployments":
-            return self._send_json(apps_list(DEPLOYMENTS, "DeploymentList"))
-        if path.startswith("/apis/apps/v1/namespaces/") and path.endswith("/deployments"):
-            ns = path.split("/")[5]
-            items = filter_by_namespace(DEPLOYMENTS, ns)
-            return self._send_json(apps_list(items, "DeploymentList"))
-
-        if path == "/apis/apps/v1/replicasets":
-            return self._send_json(apps_list(REPLICASETS, "ReplicaSetList"))
-        if path.startswith("/apis/apps/v1/namespaces/") and path.endswith("/replicasets"):
-            ns = path.split("/")[5]
-            items = filter_by_namespace(REPLICASETS, ns)
-            return self._send_json(apps_list(items, "ReplicaSetList"))
-
-        # statefulsets / daemonsets (empty)
-        if path == "/apis/apps/v1/statefulsets" or path.endswith("/statefulsets"):
-            return self._send_json(apps_list([], "StatefulSetList"))
-        if path == "/apis/apps/v1/daemonsets" or path.endswith("/daemonsets"):
-            return self._send_json(apps_list([], "DaemonSetList"))
-
-        # === networking ===
-        if path == "/apis/networking.k8s.io/v1/ingresses":
-            return self._send_json(net_list(INGRESSES, "IngressList"))
-        if path.startswith("/apis/networking.k8s.io/v1/namespaces/") and path.endswith("/ingresses"):
-            ns = path.split("/")[5]
-            items = filter_by_namespace(INGRESSES, ns)
-            return self._send_json(net_list(items, "IngressList"))
-
-        # === storage ===
-        if path == "/apis/storage.k8s.io/v1/storageclasses":
-            return self._send_json(STORAGE_CLASS_LIST)
-
-        # === batch (empty) ===
-        if path == "/apis/batch/v1":
-            res = []
-            for r in BATCH_V1_RESOURCES:
-                entry = {"name": r, "namespaced": True,
-                         "kind": RESOURCE_KIND.get(r, r[:-1].capitalize()),
-                         "verbs": ["get", "list", "watch"]}
-                res.append(entry)
-            return self._send_json({"kind": "APIResourceList", "apiVersion": "v1",
-                                    "groupVersion": "batch/v1", "resources": res})
-        if path == "/apis/batch/v1/jobs" or path == "/apis/batch/v1/cronjobs" or "/jobs" in path or "/cronjobs" in path:
-            return self._send_json({"apiVersion": "batch/v1", "kind": "JobList",
-                                    "metadata": {"resourceVersion": "184523"}, "items": []})
-
-        # === admissionregistration.k8s.io (empty) ===
-        if path == "/apis/admissionregistration.k8s.io/v1":
-            res = [
-                {"name": "validatingwebhookconfigurations", "namespaced": False,
-                 "kind": "ValidatingWebhookConfiguration", "verbs": ["get", "list", "watch"]},
-                {"name": "mutatingwebhookconfigurations", "namespaced": False,
-                 "kind": "MutatingWebhookConfiguration", "verbs": ["get", "list", "watch"]},
-            ]
-            return self._send_json({"kind": "APIResourceList", "apiVersion": "v1",
-                                    "groupVersion": "admissionregistration.k8s.io/v1", "resources": res})
-        if path == "/apis/admissionregistration.k8s.io/v1/validatingwebhookconfigurations":
-            return self._send_json({"apiVersion": "admissionregistration.k8s.io/v1",
-                                    "kind": "ValidatingWebhookConfigurationList",
-                                    "metadata": {"resourceVersion": "184523"}, "items": []})
-        if path == "/apis/admissionregistration.k8s.io/v1/mutatingwebhookconfigurations":
-            return self._send_json({"apiVersion": "admissionregistration.k8s.io/v1",
-                                    "kind": "MutatingWebhookConfigurationList",
-                                    "metadata": {"resourceVersion": "184523"}, "items": []})
-
-        # === IngressClass (empty so the "nginx" class truly doesn't exist) ===
-        if path == "/apis/networking.k8s.io/v1/ingressclasses":
-            return self._send_json({"apiVersion": "networking.k8s.io/v1",
-                                    "kind": "IngressClassList",
-                                    "metadata": {"resourceVersion": "184523"}, "items": []})
-
-        # OpenAPI / swagger
-        if path == "/openapi/v2":
-            return self._send_json({"swagger": "2.0",
-                                    "info": {"title": "Kubernetes", "version": "v1.30.0"},
-                                    "paths": {}, "definitions": {}})
-
-        # default
-        log(f"UNHANDLED: {path}")
-        return self._send_404(f"resource not found: {path}")
-
-    def _send_404(self, msg):
-        self._send_json({"kind": "Status", "apiVersion": "v1", "status": "Failure",
-                         "code": 404, "reason": "NotFound", "message": msg}, 404)
-
-    def do_POST(self):
-        # k8sgpt/robusta don't POST, but kubectl does for some operations.
-        self._send_json({"kind": "Status", "apiVersion": "v1", "status": "Success",
-                         "code": 201, "message": "created"}, 201)
-
-    def log_message(self, *args, **kwargs):
-        # silence default logging
-        pass
-
-
-def log(msg):
-    print(f"[mock-k8s] {msg}", flush=True)
+        # single object (subresource writes fold onto the parent object, which
+        # is what `kubectl patch --subresource=status` needs here)
+        if method == "GET":
+            obj = STATE.get(group, plural, namespace, name)
+            if obj is None:
+                return self._not_found(f'{plural} "{name}" not found')
+            return self._send_json(obj)
+        if method == "PATCH":
+            body = self._read_body()
+            ctype = self.headers.get("Content-Type", "")
+            obj, code = STATE.patch(group, plural, namespace, name, body, ctype)
+            if obj is None:
+                return self._not_found(f'{plural} "{name}" not found')
+            return self._send_json(obj, code)
+        if method == "PUT":
+            body = self._read_body()
+            obj, code = STATE.replace(group, plural, namespace, name, body)
+            if obj is None:
+                return self._not_found(f'{plural} "{name}" not found')
+            return self._send_json(obj, code)
+        if method == "DELETE":
+            obj, code = STATE.delete(group, plural, namespace, name)
+            if obj is None:
+                return self._not_found(f'{plural} "{name}" not found')
+            return self._send_json({"kind": "Status", "apiVersion": "v1",
+                                    "status": "Success",
+                                    "details": {"name": name, "kind": plural}}, 200)
+        return self._status(405, "MethodNotAllowed", f"{method} on {plural}/{name}")
 
 
 class ResilientThreadingHTTPServer(ThreadingHTTPServer):
-    """HTTPServer that survives broken connections and SSL errors."""
     daemon_threads = True
     allow_reuse_address = True
-    request_queue_size = 256
 
     def handle_error(self, request, client_address):
-        # swallow SSL errors and broken pipes silently
-        import sys
-        exc_type, exc_value, _ = sys.exc_info()
-        if exc_type is None:
+        exc = sys.exc_info()[1]
+        if isinstance(exc, (BrokenPipeError, ConnectionResetError, ssl.SSLError)):
             return
-        # common errors we don't care about
-        ignorable = (ConnectionResetError, BrokenPipeError, ssl.SSLError,
-                     ConnectionAbortedError, TimeoutError)
-        if isinstance(exc_value, ignorable):
-            return
-        log(f"handle_error: {exc_type.__name__}: {exc_value}")
+        log(f"connection error from {client_address}: {exc}")
 
 
-def serve(port=8443, use_tls=True, certfile=None, keyfile=None):
-    # Auto-restart loop: if the server crashes (e.g. due to a broken
-    # TLS handshake from a misbehaving client), restart it.
-    # On each restart, wait for the port to be free before retrying.
-    import time as _time
+def ensure_certs(cert_file: Path, key_file: Path) -> None:
+    """Generate a self-signed cert on first boot if one isn't present.
 
-    # Validate cert files exist BEFORE entering the loop, so we don't
-    # spin forever on a missing-file error.
+    The repo deliberately does not commit a private key. Generating on demand
+    is what makes `git clone && ./run.sh demo` work with no extra steps.
+    """
+    if cert_file.exists() and key_file.exists():
+        return
+    cert_file.parent.mkdir(parents=True, exist_ok=True)
+    log(f"generating self-signed cert -> {cert_file}")
+    subprocess.run([
+        "openssl", "req", "-x509", "-newkey", "rsa:2048", "-nodes",
+        "-keyout", str(key_file), "-out", str(cert_file), "-days", "3650",
+        "-subj", "/CN=127.0.0.1",
+        "-addext", "subjectAltName = IP:127.0.0.1,DNS:localhost",
+    ], check=True, capture_output=True)
+    os.chmod(key_file, 0o600)
+    os.chmod(cert_file, 0o644)
+
+
+def serve(port=None, use_tls=True, cert_file=None, key_file=None):
+    port = port or paths.MOCK_K8S_PORT
+    cert_file = Path(cert_file or paths.CERT_FILE)
+    key_file = Path(key_file or paths.KEY_FILE)
     if use_tls:
-        if not certfile or not os.path.exists(certfile):
-            log(f"ERROR: cert file not found: {certfile}")
-            log(f"  Set K8S_MOCK_CERT env var or mount the file.")
-            sys.exit(1)
-        if not keyfile or not os.path.exists(keyfile):
-            log(f"ERROR: key file not found: {keyfile}")
-            log(f"  Set K8S_MOCK_KEY env var or mount the file.")
-            sys.exit(1)
-        log(f"Using cert: {certfile}")
-        log(f"Using key:  {keyfile}")
+        ensure_certs(cert_file, key_file)
 
     while True:
         httpd = None
         try:
-            httpd = ResilientThreadingHTTPServer(("127.0.0.1", port), MockK8sHandler)
-            if use_tls and certfile and keyfile:
+            httpd = ResilientThreadingHTTPServer(("0.0.0.0", port), MockK8sHandler)
+            if use_tls:
                 ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-                ctx.load_cert_chain(certfile=certfile, keyfile=keyfile)
+                ctx.load_cert_chain(certfile=str(cert_file), keyfile=str(key_file))
                 httpd.socket = ctx.wrap_socket(httpd.socket, server_side=True)
-            log(f"Mock Kubernetes API listening on {'https' if use_tls else 'http'}://127.0.0.1:{port}")
+            scheme = "https" if use_tls else "http"
+            log(f"serving broken payment-prod cluster on {scheme}://0.0.0.0:{port}")
+            log(f"state: {json.dumps(STATE.health_summary())}")
             httpd.serve_forever()
         except KeyboardInterrupt:
             break
-        except Exception as e:
-            log(f"Server crashed: {type(e).__name__}: {e} - restarting in 2s")
+        except Exception as exc:
+            log(f"server crashed: {type(exc).__name__}: {exc} - restarting in 2s")
         finally:
-            # ALWAYS close the server on crash/exit so the port is released
             if httpd is not None:
                 try:
                     httpd.server_close()
                 except Exception:
                     pass
-        _time.sleep(2)
+        time.sleep(2)
 
 
 if __name__ == "__main__":
-    import sys
-    port = int(sys.argv[1]) if len(sys.argv) > 1 else 8443
-    use_tls = "--no-tls" not in sys.argv
-
-    # Auto-detect cert path: check multiple locations so the script works
-    # both in the dev environment (/home/z/my-project/mock-k8s/) and
-    # inside Docker (/app/mock-k8s/).
-    _cert_candidates = [
-        os.environ.get("K8S_MOCK_CERT"),
-        "/app/mock-k8s/cert.pem",
-        "/home/z/my-project/mock-k8s/cert.pem",
-        os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "mock-k8s", "cert.pem"),
-    ]
-    _key_candidates = [
-        os.environ.get("K8S_MOCK_KEY"),
-        "/app/mock-k8s/key.pem",
-        "/home/z/my-project/mock-k8s/key.pem",
-        os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "mock-k8s", "key.pem"),
-    ]
-    certfile = next((c for c in _cert_candidates if c and os.path.exists(c)), None)
-    keyfile = next((k for k in _key_candidates if k and os.path.exists(k)), None)
-
-    if use_tls and not certfile:
-        log("ERROR: cert.pem not found in any of the expected locations:")
-        for c in _cert_candidates:
-            log(f"  - {c}")
-        log("  Run scripts/gen_cert.sh to generate one, or set K8S_MOCK_CERT env var.")
-        sys.exit(1)
-    if use_tls and not keyfile:
-        log("ERROR: key.pem not found. Run scripts/gen_cert.sh or set K8S_MOCK_KEY.")
-        sys.exit(1)
-
-    if not use_tls:
-        certfile = keyfile = None
-    serve(port, use_tls, certfile, keyfile)
+    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    port_arg = int(args[0]) if args else paths.MOCK_K8S_PORT
+    serve(port_arg, use_tls="--no-tls" not in sys.argv)

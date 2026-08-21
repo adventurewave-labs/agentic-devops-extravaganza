@@ -1,0 +1,168 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  K8SGPT_VERSION: v0.4.36
+  KUBECTL_VERSION: v1.30.0
+
+jobs:
+  mock:
+    name: mock path — scan, remediate, UAT
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Pillow (GIF renderer)
+        run: pip install "pillow>=10,<13"
+
+      - name: Install k8sgpt and kubectl
+        run: |
+          curl -fsSL "https://github.com/k8sgpt-ai/k8sgpt/releases/download/${K8SGPT_VERSION}/k8sgpt_Linux_x86_64.tar.gz" \
+            | sudo tar xz -C /usr/local/bin k8sgpt
+          curl -fsSL "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl" \
+            -o /usr/local/bin/kubectl
+          sudo chmod +x /usr/local/bin/kubectl /usr/local/bin/k8sgpt
+          k8sgpt version && kubectl version --client
+
+      - name: Configure k8sgpt customrest backend
+        run: |
+          mkdir -p ~/.config/k8sgpt
+          cat > ~/.config/k8sgpt/k8sgpt.yaml <<'YAML'
+          ai:
+              providers:
+                  - name: customrest
+                    model: llama3.1
+                    password: none
+                    baseurl: http://127.0.0.1:8081
+                    temperature: 0.7
+                    topp: 0.5
+                    topk: 50
+                    maxtokens: 2048
+                    customheaders: []
+              defaultprovider: ""
+          kubeconfig: ""
+          kubecontext: ""
+          verbose: false
+          version: 0.4.36
+          YAML
+
+      - name: Start the stack
+        env:
+          LLM_BACKEND: replay
+        run: |
+          ./run.sh demo
+          curl -sk https://127.0.0.1:8443/_demo/health
+
+      - name: Scan must find every broken resource
+        run: |
+          ./run.sh scan | tee /tmp/scan.txt
+          count=$(grep -cE '^[0-9]+: ' /tmp/scan.txt)
+          echo "findings: $count"
+          test "$count" -eq 8 || { echo "::error::expected 8 findings, got $count"; exit 1; }
+          for kind in Node PersistentVolumeClaim Service Ingress Pod Deployment; do
+            grep -q ": $kind " /tmp/scan.txt || { echo "::error::no $kind finding"; exit 1; }
+          done
+
+      - name: Remediation must drive findings to zero
+        env:
+          KUBECONFIG: ${{ github.workspace }}/mock-k8s/kubeconfig.yaml
+          KUBE_CONTEXT: mock-context
+        run: |
+          bash ./scripts/remediate.sh
+          ./run.sh scan | tee /tmp/after.txt || true
+          count=$(grep -cE '^[0-9]+: ' /tmp/after.txt || true)
+          echo "findings after remediation: $count"
+          test "$count" -eq 0 || { echo "::error::expected 0 findings, got $count"; exit 1; }
+
+      - name: Reset must restore the broken state
+        run: |
+          ./run.sh reset
+          count=$(./run.sh scan | grep -cE '^[0-9]+: ')
+          test "$count" -eq 8 || { echo "::error::reset left $count findings"; exit 1; }
+
+      - name: Acceptance suite
+        env:
+          LLM_BACKEND: replay
+        run: ./run.sh uat
+
+      - name: GIF renderer must work on a clean clone
+        run: |
+          python scripts/cast_to_gif.py recordings/scan.cast /tmp/ci-scan.gif
+          test -s /tmp/ci-scan.gif
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: outputs
+          path: |
+            outputs/
+            var/log/
+
+  docker:
+    name: container image — scan and remediate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose build
+      - run: docker compose run --rm scan | tee /tmp/scan.txt
+      - run: |
+          count=$(grep -cE '^[0-9]+: ' /tmp/scan.txt)
+          test "$count" -eq 8 || { echo "::error::container scan found $count findings"; exit 1; }
+      - run: docker compose run --rm remediate
+      - env:
+          LLM_BACKEND: replay
+        run: docker compose run --rm uat
+
+  kind:
+    name: kind path — real cluster, real Robusta
+    runs-on: ubuntu-latest
+    # The real-cluster path pulls images and installs a Helm release, so it
+    # runs on demand and on main rather than on every branch push.
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: helm/kind-action@v1
+        with:
+          config: kind/kind-config.yaml
+          cluster_name: agentic-devops
+
+      - name: Install k8sgpt
+        run: |
+          curl -fsSL "https://github.com/k8sgpt-ai/k8sgpt/releases/download/${K8SGPT_VERSION}/k8sgpt_Linux_x86_64.tar.gz" \
+            | sudo tar xz -C /usr/local/bin k8sgpt
+
+      - name: Deploy the genuinely-broken workloads
+        run: make kind-broken
+
+      - name: k8sgpt against a real cluster
+        run: |
+          make kind-scan | tee /tmp/kind-scan.txt
+          count=$(grep -cE '^[0-9]+: ' /tmp/kind-scan.txt)
+          echo "real-cluster findings: $count"
+          test "$count" -ge 5 || { echo "::error::expected >=5 findings on kind, got $count"; exit 1; }
+
+      - name: Install real Robusta
+        run: make kind-robusta
+
+      - name: Fire a real Prometheus alert at it
+        run: make kind-fire-alert
+
+      - name: Remediate the real cluster
+        run: make kind-remediate
+
+      - name: Diagnostics
+        if: always()
+        run: |
+          kubectl get pods -A
+          kubectl -n payment-prod describe pods || true
+          kubectl logs -l app=robusta-runner --tail=200 || true

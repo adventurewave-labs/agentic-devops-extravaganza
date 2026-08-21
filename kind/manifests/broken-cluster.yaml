@@ -1,0 +1,110 @@
+# The same seven problems the mock serves, reproduced on a REAL cluster.
+#
+# Nothing here is simulated: the image tag genuinely does not exist, the
+# worker genuinely allocates past its memory limit and is genuinely OOMKilled
+# by the kernel, the Service selector genuinely matches no Pods, and the
+# StorageClass genuinely is not registered. k8sgpt finds them for the same
+# reasons it finds them against the mock.
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: payment-prod
+---
+# 1. CrashLoopBackOff / ImagePullBackOff: this registry+tag does not exist.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payment-api
+  namespace: payment-prod
+  labels: {app: payment-api}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: payment-api}
+  template:
+    metadata:
+      labels: {app: payment-api}
+    spec:
+      containers:
+        - name: api
+          image: registry.io/payments/api:1.4.2
+          ports:
+            - containerPort: 8080
+          resources:
+            requests: {cpu: 100m, memory: 128Mi}
+            limits: {cpu: 500m, memory: 256Mi}
+---
+# 2. OOMKilled: allocates ~200Mi against a 96Mi limit, so the kernel kills it.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payment-worker
+  namespace: payment-prod
+  labels: {app: payment-worker}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: payment-worker}
+  template:
+    metadata:
+      labels: {app: payment-worker}
+    spec:
+      containers:
+        - name: worker
+          image: busybox:1.36
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              echo "worker starting"; \
+              dd if=/dev/zero of=/dev/shm/balloon bs=1M count=200; \
+              sleep 3600
+          resources:
+            requests: {cpu: 50m, memory: 64Mi}
+            limits: {cpu: 100m, memory: 96Mi}
+---
+# 3. Service with a selector typo: matches no Pod, so it has no Endpoints.
+apiVersion: v1
+kind: Service
+metadata:
+  name: payment-api-svc
+  namespace: payment-prod
+spec:
+  selector: {app: payment-api-frontend}   # the Pods are labelled payment-api
+  ports:
+    - port: 80
+      targetPort: 8080
+---
+# 4 + 5. Ingress referencing an IngressClass and a backend Service that
+# neither exist.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: payment-ingress
+  namespace: payment-prod
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: pay.internal.acme.io
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: payment-frontend
+                port: {number: 80}
+---
+# 6. PVC bound to a StorageClass that is not registered on the cluster.
+# (kind ships "standard"; "fast-ssd" deliberately does not exist.)
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: payment-data-pvc
+  namespace: payment-prod
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: fast-ssd
+  resources:
+    requests:
+      storage: 10Gi

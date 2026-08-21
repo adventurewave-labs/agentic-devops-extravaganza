@@ -1,23 +1,28 @@
-Service payment-prod/payment-api-svc does not exist
 AI Provider: AI not used; --explain not set
 
-0: Node worker-3()
-- Error: worker-3 has condition of type DiskPressure, reason KubeletHasNoDiskSpace: kubelet has disk pressure
+0: Deployment payment-prod/payment-worker()
+- Error: Deployment payment-prod/payment-worker has 1 replicas but 0 are available with status running
 
 1: Deployment payment-prod/payment-api()
 - Error: Deployment payment-prod/payment-api has 1 replicas but 0 are available with status running
 
-2: Deployment payment-prod/payment-worker()
-- Error: Deployment payment-prod/payment-worker has 1 replicas but 0 are available with status running
+2: Node worker-3()
+- Error: worker-3 has condition of type DiskPressure, reason KubeletHasNoDiskSpace: kubelet has disk pressure
 
-3: Pod payment-prod/payment-api-7c4f5b-x9qkl()
-- Error: the last termination reason is Error container=api pod=payment-api-7c4f5b-x9qkl
-
-4: Pod payment-prod/payment-worker-6d8b2c-p3mnr()
-- Error: the last termination reason is OOMKilled container=worker pod=payment-worker-6d8b2c-p3mnr
-
-5: Ingress payment-prod/payment-ingress()
+3: Ingress payment-prod/payment-ingress()
 - Error: Ingress uses the ingress class nginx which does not exist.
 - Error: Ingress uses the service payment-prod/payment-frontend which does not exist.
+
+4: Service payment-prod/payment-api-svc()
+- Error: Service has no endpoints, expected label app=payment-api-frontend
+
+5: Pod payment-prod/payment-api-7c4f5b-x9qkl(Deployment/payment-api)
+- Error: the last termination reason is Error container=api pod=payment-api-7c4f5b-x9qkl
+
+6: Pod payment-prod/payment-worker-6d8b2c-p3mnr(Deployment/payment-worker)
+- Error: the last termination reason is OOMKilled container=worker pod=payment-worker-6d8b2c-p3mnr
+
+7: PersistentVolumeClaim payment-prod/payment-data-pvc()
+- Error: storageclass.storage.k8s.io "standard" not found
 
 

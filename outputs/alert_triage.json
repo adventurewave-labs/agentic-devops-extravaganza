@@ -1,0 +1,8 @@
+{
+  "alert": "PaymentAPIHighErrorRate",
+  "llm_source": "replay-miss",
+  "elapsed_seconds": 0.41,
+  "analysis": "[replay mode] No cached response for this prompt. Run with a live LLM backend (LLM_BACKEND=ollama is credential-free) to generate one.",
+  "slack_posted": false,
+  "slack_detail": "--post-slack not passed; card rendered locally only"
+}

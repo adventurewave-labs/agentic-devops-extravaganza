@@ -1,10 +1,27 @@
-Service payment-prod/payment-api-svc does not exist
 {
   "provider": "",
   "errors": null,
   "status": "ProblemDetected",
-  "problems": 7,
+  "problems": 9,
   "results": [
+    {
+      "kind": "Node",
+      "name": "worker-3",
+      "error": [
+        {
+          "Text": "worker-3 has condition of type DiskPressure, reason KubeletHasNoDiskSpace: kubelet has disk pressure",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "worker-3",
+              "Masked": "amR6NkNlIW4="
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
     {
       "kind": "Deployment",
       "name": "payment-prod/payment-api",
@@ -15,11 +32,11 @@ Service payment-prod/payment-api-svc does not exist
           "Sensitive": [
             {
               "Unmasked": "payment-prod",
-              "Masked": "YSNVVSQjbDVwUHM3"
+              "Masked": "clFuSV8hWy0+SWdr"
             },
             {
               "Unmasked": "payment-api",
-              "Masked": "NCZ5Tn1hK3ZFWzc="
+              "Masked": "e28wJU4rK1t2UFY="
             }
           ]
         }
@@ -37,11 +54,11 @@ Service payment-prod/payment-api-svc does not exist
           "Sensitive": [
             {
               "Unmasked": "payment-prod",
-              "Masked": "TUJ0dy1kX3J3eWQ3"
+              "Masked": "Y3FqIiMoLF1nQSMz"
             },
             {
               "Unmasked": "payment-worker",
-              "Masked": "Yi8qNnVXaUVYUnZPbG0="
+              "Masked": "IXNveE8rMndeVDZqSlo="
             }
           ]
         }
@@ -50,16 +67,33 @@ Service payment-prod/payment-api-svc does not exist
       "parentObject": ""
     },
     {
-      "kind": "Node",
-      "name": "worker-3",
+      "kind": "PersistentVolumeClaim",
+      "name": "payment-prod/payment-data-pvc",
       "error": [
         {
-          "Text": "worker-3 has condition of type DiskPressure, reason KubeletHasNoDiskSpace: kubelet has disk pressure",
+          "Text": "storageclass.storage.k8s.io \"standard\" not found",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Service",
+      "name": "payment-prod/payment-api-svc",
+      "error": [
+        {
+          "Text": "Service has no endpoints, expected label app=payment-api-frontend",
           "KubernetesDoc": "",
           "Sensitive": [
             {
-              "Unmasked": "worker-3",
-              "Masked": "aFlpcEc6MVo="
+              "Unmasked": "app",
+              "Masked": "Qkt6"
+            },
+            {
+              "Unmasked": "payment-api-frontend",
+              "Masked": "Y0hqS140cmpwKFtzeS9ZWyIxdi0="
             }
           ]
         }
@@ -77,7 +111,7 @@ Service payment-prod/payment-api-svc does not exist
           "Sensitive": [
             {
               "Unmasked": "nginx",
-              "Masked": "T00uJmg="
+              "Masked": "MiM6Vnk="
             }
           ]
         },
@@ -87,11 +121,11 @@ Service payment-prod/payment-api-svc does not exist
           "Sensitive": [
             {
               "Unmasked": "payment-prod",
-              "Masked": "MElaOWRWSVhtLjtN"
+              "Masked": "KihCTUdPbFNXYk9C"
             },
             {
               "Unmasked": "payment-frontend",
-              "Masked": "RChFblghVjRSRzMjcWVheA=="
+              "Masked": "ekxSM3dQTSJEQENXJHApTg=="
             }
           ]
         }
@@ -110,7 +144,7 @@ Service payment-prod/payment-api-svc does not exist
         }
       ],
       "details": "",
-      "parentObject": ""
+      "parentObject": "Deployment/payment-api"
     },
     {
       "kind": "Pod",
@@ -123,7 +157,7 @@ Service payment-prod/payment-api-svc does not exist
         }
       ],
       "details": "",
-      "parentObject": ""
+      "parentObject": "Deployment/payment-worker"
     }
   ]
 }

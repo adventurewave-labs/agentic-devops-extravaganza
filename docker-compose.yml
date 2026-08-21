@@ -1,93 +1,53 @@
-# Agentic DevOps Extravaganza — docker-compose
+# Agentic DevOps Extravaganza
 #
-# Five run modes:
+#   docker compose up site              the showcase page on :8080
+#   docker compose up demo              site + mock K8s API + LLM proxy
+#   docker compose run --rm scan        k8sgpt analyze, no LLM
+#   docker compose run --rm remediate   real kubectl fixes: 8 findings -> 0
+#   docker compose run --rm explain     k8sgpt --explain (needs an LLM backend)
+#   docker compose run --rm triage      the alert triage agent
+#   docker compose run --rm uat         the acceptance suite
 #
-#   1) site     — just the static showcase page on :8080
-#   2) demo     — site + mock K8s API :8443 + Z.AI proxy :8081 + k8sgpt installed
-#   3) scan     — one-shot: start mock K8s, run k8sgpt analyze (no LLM)
-#   4) explain  — one-shot: start mock K8s + proxy, run k8sgpt --explain (GLM-4.5)
-#   5) robusta  — one-shot: start mock K8s + proxy, run Robusta autonomous SRE flow
-#   6) uat      — one-shot: run the 15-test acceptance matrix
-#
-# Usage:
-#   docker compose up site             # static site only
-#   docker compose up demo             # full stack (stays running)
-#   docker compose run --rm scan       # one-shot k8sgpt scan
-#   docker compose run --rm explain    # one-shot k8sgpt --explain
-#   docker compose run --rm robusta    # one-shot Robusta flow
-#   docker compose run --rm uat        # one-shot UAT matrix
-#
-# To use the Z.AI proxy (real LLM calls), drop your .z-ai-config at the
-# repo root and docker compose will mount it read-only.
-# Format:
-#   {"baseUrl":"https://internal-api.z.ai/v1","apiKey":"Z.ai",
-#    "chatId":"<your-chat-id>","token":"<your-jwt>","userId":"<your-user-id>"}
+# LLM backend selection is by environment, never by a baked-in vendor:
+#   LLM_BACKEND=ollama  (default)  LLM_BASE_URL=http://host.docker.internal:11434/v1
+#   LLM_BACKEND=openai            OPENAI_API_KEY=...
+#   LLM_BACKEND=replay            no network; replays captured/llm_cache.json
+
+x-common: &common
+  build: .
+  image: agentic-devops-extravaganza:latest
+  environment:
+    LLM_BACKEND: ${LLM_BACKEND:-replay}
+    LLM_BASE_URL: ${LLM_BASE_URL:-}
+    LLM_MODEL: ${LLM_MODEL:-}
+    OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+    OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+    ZAI_API_KEY: ${ZAI_API_KEY:-}
+    SLACK_WEBHOOK_URL: ${SLACK_WEBHOOK_URL:-}
+  restart: "no"
 
 services:
-
   site:
-    build: .
-    image: agentic-devops-extravaganza:latest
+    <<: *common
     container_name: agentic-devops-site
-    ports:
-      - "8080:80"
+    ports: ["8080:80"]
+    command: ["site"]
     restart: unless-stopped
 
   demo:
-    build: .
-    image: agentic-devops-extravaganza:latest
+    <<: *common
     container_name: agentic-devops-demo
-    ports:
-      - "8080:80"
-      - "8443:8443"
-      - "8081:8081"
-    volumes:
-      # Mount your Z.AI config read-only. See README for format.
-      # If this file doesn't exist, the proxy won't start but the
-      # mock K8s + site will still work.
-      - ./.z-ai-config:/run/secrets/zai-config:ro
+    ports: ["8080:80", "8443:8443", "8081:8081"]
     command: ["demo"]
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://localhost:8080/"]
+      test: ["CMD", "curl", "-fsSk", "https://127.0.0.1:8443/_demo/health"]
       interval: 10s
       timeout: 3s
       retries: 6
 
-  # One-shot: k8sgpt analyze (no LLM, just the 6 findings)
-  scan:
-    build: .
-    image: agentic-devops-extravaganza:latest
-    container_name: agentic-devops-scan
-    command: ["scan"]
-    restart: "no"
-
-  # One-shot: k8sgpt analyze --explain (with GLM-4.5 via proxy)
-  explain:
-    build: .
-    image: agentic-devops-extravaganza:latest
-    container_name: agentic-devops-explain
-    volumes:
-      - ./.z-ai-config:/run/secrets/zai-config:ro
-    command: ["explain"]
-    restart: "no"
-
-  # One-shot: Robusta autonomous SRE flow
-  robusta:
-    build: .
-    image: agentic-devops-extravaganza:latest
-    container_name: agentic-devops-robusta
-    volumes:
-      - ./.z-ai-config:/run/secrets/zai-config:ro
-    command: ["robusta"]
-    restart: "no"
-
-  # One-shot: 15-test UAT matrix
-  uat:
-    build: .
-    image: agentic-devops-extravaganza:latest
-    container_name: agentic-devops-uat
-    volumes:
-      - ./.z-ai-config:/run/secrets/zai-config:ro
-    command: ["uat"]
-    restart: "no"
+  scan:      {<<: *common, command: ["scan"]}
+  explain:   {<<: *common, command: ["explain"]}
+  remediate: {<<: *common, command: ["remediate"]}
+  triage:    {<<: *common, command: ["triage"]}
+  uat:       {<<: *common, command: ["uat"]}
