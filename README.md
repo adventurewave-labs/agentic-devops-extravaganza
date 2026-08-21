@@ -1,226 +1,238 @@
 # Agentic DevOps Extravaganza
 
-[![Deploy to Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fadventurewave-labs%2Fagentic-devops-extravaganza)
+[![CI](https://github.com/adventurewave-labs/agentic-devops-extravaganza/actions/workflows/ci.yml/badge.svg)](https://github.com/adventurewave-labs/agentic-devops-extravaganza/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-326ce5.svg)](LICENSE)
 [![K8sGPT: v0.4.36](https://img.shields.io/badge/K8sGPT-v0.4.36-00d9ff.svg)](https://github.com/k8sgpt-ai/k8sgpt)
-[![LLM: GLM-4.5](https://img.shields.io/badge/LLM-GLM--4.5-b388ff.svg)](https://z.ai)
-[![Demos: 4](https://img.shields.io/badge/Demos-4-ff7a3d.svg)](#-demos)
 
-> A working, end-to-end demonstration of two open-source agentic AI tools for Kubernetes — **K8sGPT** and **Robusta** — running against a real Kubernetes API and a real LLM (GLM-4.5 via Z.AI).
+**AI-assisted Kubernetes triage you can run yourself in one command — then watch the findings actually go away.**
 
-🌐 **Live landing page:** deploy this repo to Vercel — one-click button above, or see [`site/DEPLOY.md`](site/DEPLOY.md).
+Two ways to run it, both real:
 
-![Agentic DevOps 5-challenge cinematic demo](gifs/wow_demo.gif)
+| Path | What it is | Needs | Time |
+|---|---|---|---|
+| **mock** | A Python Kubernetes API server serving a deliberately broken `payment-prod`. Real `k8sgpt` and real `kubectl` talk to it over the real Kubernetes REST API, **including writes**. | Python 3.10+ | ~2 seconds |
+| **kind** | A real Kubernetes cluster with genuinely broken workloads and **real [Robusta](https://github.com/robusta-dev/robusta)** installed by Helm, receiving a real Prometheus alert. | Docker, kind, helm | ~10 minutes |
 
-```
-  Prometheus ──webhook──> Robusta ──HTTP──> Mock K8s API (payment-prod)
-                                  ↑                        │
-                                  │                        ▼
-                                  │                k8sgpt analyze (Go)
-                                  │                        │
-                                  └──────── GLM-4.5 (Z.AI) ◄┘
-                                                  │
-                                                  ▼
-                                          Slack RCA card
-```
+![Real kubectl remediation: 8 findings, then 0](gifs/remediate.gif)
 
-## ✨ What's in the box
+## What is and isn't real
 
-| Component | Role | Repo |
-|---|---|---|
-| **mock_k8s_server.py** | Mock Kubernetes API serving a deliberately-broken `payment-prod` cluster | this repo, `scripts/` |
-| **k8sgpt** (v0.4.36) | 14 structured Go analyzers — finds 6 real issues deterministically | [k8sgpt-ai/k8sgpt](https://github.com/k8sgpt-ai/k8sgpt) |
-| **zai_proxy.py** | Translates k8sgpt's `customrest` request shape to Z.AI's OpenAI-compat API | this repo, `scripts/` |
-| **GLM-4.5** | The LLM brain — generates step-by-step root-cause analyses | [z.ai](https://z.ai) |
-| **robusta_demo.py** | Robusta-style alert-driven autonomous SRE flow | this repo, `scripts/` |
-| **build_casts.py** | Rebuilds the asciinema casts + GIFs from captured outputs | this repo, `scripts/` |
+This section is first on purpose. A demo that oversells itself is worth less than one that tells you exactly where the edges are.
 
-The mock cluster ships with **six broken resources** that drive every demo:
+**Real:**
 
-- 2 Nodes (one in `DiskPressure`)
-- 2 broken Deployments (`payment-api` in CrashLoopBackOff from a bad image, `payment-worker` in OOMKilled from too-low memory limits)
-- 1 dangling Ingress (routes to a Service that doesn't exist)
-- 1 Pending PVC (`StorageClass standard` was deleted)
+- **k8sgpt is the real binary.** v0.4.36, 14 Go analyzers, no LLM involved in the scan. It finds **8 problems** in the broken cluster.
+- **The Kubernetes API is real protocol.** Discovery, TLS, field selectors, label selectors, all five verbs. `kubectl get`, `set image`, `patch`, `cordon`, `drain`, `create`, `apply` all work against it. `kubectl` cannot tell it isn't a kube-apiserver.
+- **Remediation genuinely changes state.** `scripts/remediate.sh` issues real kubectl writes. A reconciler models the control plane's response. Re-running k8sgpt then reports **0 findings** because the state it reads is different. Comment out one fix and that finding stays. This is not a scripted before/after.
+- **Robusta is real in the `kind/` path.** The actual `robusta-dev/robusta` Helm chart, the actual kube-prometheus-stack, an actual `PrometheusRule` that fires an actual alert.
+- **The GIFs are recorded from live terminal sessions** in a pty by [`scripts/record_demos.py`](scripts/record_demos.py). If a command fails, the failure is in the GIF.
 
-When k8sgpt scans that state, it emits **6 findings** in <1 second. Adding `--explain` sends each finding to GLM-4.5 for a step-by-step remediation plan — 6 real LLM calls, no hallucination, grounded in actual cluster state.
+**Not real, and labelled as such everywhere:**
 
-## 🚀 Quick start
+- **The `payment-prod` cluster in the mock path is a simulation.** The file is called `mock_k8s_server.py`. No containers are scheduled; no kubelet exists. Its reconciler models six control-plane behaviours, [enumerated below](#what-the-reconciler-simulates) and served at `/_demo/rules`.
+- **`scripts/alert_triage_agent.py` is not Robusta.** It is a ~250-line reference implementation of Robusta's alert → context → LLM → card loop, written to be readable in one sitting. For Robusta itself, use the kind path.
+- **Slack posting is opt-in and off by default.** Set `SLACK_WEBHOOK_URL` and pass `--post-slack`. With neither, the card renders locally and the script says so.
+- **The LLM is whatever you point it at.** There is no bundled model and no bundled key.
 
-### Option A — Static site (Vercel, one click)
+> **On the history of this repo.** Earlier versions claimed "real Kubernetes API", "no mocks", and a "6/6 remediated" demo that ran no commands; the alert script printed "Jira ticket PAY-1247 created" with no Jira client anywhere in the tree; the headline GIF was hand-authored rather than recorded; and every script hardcoded absolute paths from one developer machine, so the published 15/15 test suite could not run on any other machine. All of that is fixed, and this section exists so it stays fixed.
 
-[![Deploy to Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fadventurewave-labs%2Fagentic-devops-extravaganza)
+## Quick start
 
-Vercel auto-detects the `vercel.json` and serves the repo root (where `index.html` lives) as a static site. Live in ~30 seconds.
-
-### Option B — Local Python (no Docker)
+### Mock path — no Docker, no cluster
 
 ```bash
 git clone https://github.com/adventurewave-labs/agentic-devops-extravaganza.git
 cd agentic-devops-extravaganza
 
-./run.sh site       # serves the showcase page on http://localhost:8080
-# OR
-./run.sh demo       # full stack: site + mock K8s API + Z.AI proxy
+# k8sgpt (Linux; brew install k8sgpt on macOS)
+curl -sL https://github.com/k8sgpt-ai/k8sgpt/releases/download/v0.4.36/k8sgpt_Linux_x86_64.tar.gz \
+  | sudo tar xz -C /usr/local/bin k8sgpt
+
+./run.sh demo        # mock K8s API :8443 + LLM proxy :8081 + site :8080
+./run.sh scan        # 8 findings, no LLM
+./run.sh remediate   # real kubectl fixes -> re-scan -> 0 findings
+./run.sh reset       # put the cluster back
 ```
 
-### Option C — Docker
+TLS certs are generated on first boot. There is nothing else to configure.
 
-The Dockerfile installs **real binaries**: k8sgpt v0.4.36 and kubectl v1.30.0.
-Pre-configures the k8sgpt customrest backend to point at the Z.AI proxy.
+### Docker
 
 ```bash
-# Just the static site
-docker compose up site
-
-# Full demo stack (mock K8s + Z.AI proxy + site + k8sgpt installed)
-# Requires a .z-ai-config file at repo root — see "Z.AI credentials" below
-docker compose up demo
-
-# One-shot: k8sgpt analyze (no LLM, just 6 findings)
-docker compose run --rm scan
-
-# One-shot: k8sgpt analyze --explain (with GLM-4.5)
-docker compose run --rm explain
-
-# One-shot: Robusta autonomous SRE flow
-docker compose run --rm robusta
-
-# One-shot: 15-test UAT matrix
-docker compose run --rm uat
+docker compose run --rm scan        # k8sgpt analyze, no LLM
+docker compose run --rm remediate   # the 8 -> 0 run
+docker compose run --rm uat         # the acceptance suite
+docker compose up demo              # full stack, stays running
+docker compose up site              # just the showcase page
 ```
 
-Inside the `demo` container, k8sgpt is on PATH and pre-configured:
+The image installs the real k8sgpt v0.4.36 and kubectl v1.30.0 binaries.
+
+### kind path — a real cluster with real Robusta
 
 ```bash
-docker compose exec demo k8sgpt analyze \
-  --kubeconfig /app/mock-k8s/kubeconfig.yaml \
-  --kubecontext mock-context -n payment-prod \
-  --explain --backend customrest
+make kind-up          # 3-node kind cluster
+make kind-broken      # deploy genuinely-broken workloads, wait for them to break
+make kind-scan        # k8sgpt against a real cluster
+make kind-robusta     # helm install robusta + kube-prometheus-stack
+make kind-fire-alert  # make Prometheus fire PaymentAPIHighErrorRate for real
+make kind-findings    # what Robusta actually did
+make kind-remediate   # the same remediate.sh, against the real cluster
+make kind-down
 ```
 
-### Run k8sgpt yourself
+`make help` lists every target.
 
-Once `./run.sh demo` is running:
+## The eight findings
+
+```
+$ k8sgpt analyze --kubecontext mock-context --no-cache -n payment-prod
+
+0: Node worker-3()
+- Error: worker-3 has condition of type DiskPressure, reason KubeletHasNoDiskSpace
+1: PersistentVolumeClaim payment-prod/payment-data-pvc()
+- Error: storageclass.storage.k8s.io "standard" not found
+2: Service payment-prod/payment-api-svc()
+- Error: Service has no endpoints, expected label app=payment-api-frontend
+3: Ingress payment-prod/payment-ingress()
+- Error: Ingress uses the ingress class nginx which does not exist.
+- Error: Ingress uses the service payment-prod/payment-frontend which does not exist.
+4: Pod payment-prod/payment-api-7c4f5b-x9qkl(Deployment/payment-api)
+- Error: the last termination reason is Error container=api
+5: Pod payment-prod/payment-worker-6d8b2c-p3mnr(Deployment/payment-worker)
+- Error: the last termination reason is OOMKilled container=worker
+6: Deployment payment-prod/payment-api()
+- Error: Deployment has 1 replicas but 0 are available with status running
+7: Deployment payment-prod/payment-worker()
+- Error: Deployment has 1 replicas but 0 are available with status running
+```
+
+Verbatim from `outputs/k8sgpt_analyze.txt`, regenerated by CI on every push.
+
+## Remediation is a real write path
+
+`./run.sh remediate` runs [`scripts/remediate.sh`](scripts/remediate.sh) — seven real kubectl commands:
 
 ```bash
-export KUBECONFIG=$(pwd)/mock-k8s/kubeconfig.yaml
-k8sgpt analyze \
-  --kubeconfig mock-k8s/kubeconfig.yaml \
-  --kubecontext mock-context \
-  --no-cache -n payment-prod           # 6 findings, no LLM
-
-k8sgpt analyze \
-  --kubeconfig mock-k8s/kubeconfig.yaml \
-  --kubecontext mock-context \
-  --no-cache -n payment-prod \
-  --explain --backend customrest       # 6 findings, each explained by GLM-4.5
+kubectl set image deployment/payment-api api=registry.io/payments/api:1.4.3
+kubectl patch deployment payment-worker --type=strategic -p '{...memory: 512Mi...}'
+kubectl patch service payment-api-svc --type=merge -p '{"spec":{"selector":{"app":"payment-api"}}}'
+kubectl cordon worker-3 && kubectl drain worker-3 --ignore-daemonsets --force
+kubectl apply -f manifests/fix-ingressclass.yaml
+kubectl create service clusterip payment-frontend --tcp=80:80
+kubectl apply -f manifests/fix-storageclass.yaml
 ```
 
-## 📡 Service endpoints
+```
+=== BEFORE ===   k8sgpt findings: 8
+=== AFTER  ===   k8sgpt findings: 0
+```
 
-| Service | Port | Path | Purpose |
-|---|---|---|---|
-| showcase site | 8080 | `/`, `/gifs/*`, `/outputs/*` | the landing page |
-| mock K8s API | 8443 | `/api/v1/*`, `/apis/apps/v1/*`, ... | realistic broken `payment-prod` cluster state |
-| Z.AI proxy | 8081 | `POST /` | translates k8sgpt's customrest shape → Z.AI chat completions |
+The same script runs against the kind cluster with `make kind-remediate`.
 
-## 🎬 Demos
+### What the reconciler simulates
 
-Four animated GIFs (committed in `gifs/`):
+The mock has no kubelet, so something has to decide what a write *means*. That is `cluster_state.py`'s reconciler, and here is every rule it applies — also served live at `GET /_demo/rules`:
 
-0. **`wow_demo.gif`** — the 30-second cinematic walkthrough: 5 challenges (blind triage → AI diagnosis → remediation → autonomous SRE → before/after dashboard). This is the one to watch first.
-1. **`k8sgpt_scan.gif`** — 25s: k8sgpt finds 6 real issues in the broken cluster, no LLM
-2. **`k8sgpt_explain.gif`** — 25s: same scan, with GLM-4.5 explaining each finding step-by-step
-3. **`robusta.gif`** — 25s: Robusta receives a Prometheus alert, investigates the cluster, calls GLM, posts a Slack RCA card
+| Finding | Trigger | Simulated effect |
+|---|---|---|
+| payment-api CrashLoopBackOff | image != the broken tag | Deployment 1/1, Pod Running/Ready |
+| payment-worker OOMKilled | memory limit ≥ 256Mi | Deployment 1/1, Pod Running/Ready |
+| worker-3 DiskPressure | node cordoned, or condition patched False | DiskPressure clears (models drain + disk reclaim) |
+| Ingress dangling backend | Service `payment-frontend` created | backend resolves |
+| Ingress missing class | IngressClass `nginx` created | class resolves |
+| PVC Pending | StorageClass `standard` created | PVC binds |
+| Service no endpoints | selector corrected to `app=payment-api` | Endpoints populate once the Pod is Ready |
 
-Each GIF is rendered from an asciinema `.cast` file in `recordings/` via the `agg` binary. The displayed output is verbatim from the real binaries — no mocks, no edits.
+The rules derive status purely from current spec, so they are order-independent and idempotent: fix things in any order, or only some of them, and the finding count follows.
 
-## 🧪 Reproduce the demos
+In the kind path there is no reconciler — a real kubelet and real controllers do the work.
+
+## LLM backends
+
+`--explain` sends each finding to a model. The proxy ([`scripts/llm_proxy.py`](scripts/llm_proxy.py)) translates k8sgpt's `customrest` shape to any OpenAI-compatible API.
+
+| `LLM_BACKEND` | Endpoint | Credentials |
+|---|---|---|
+| `ollama` *(default)* | `http://127.0.0.1:11434/v1` | none — runs on your machine |
+| `openai` | `api.openai.com` | `OPENAI_API_KEY` |
+| `openrouter` | `openrouter.ai` | `OPENROUTER_API_KEY` |
+| `zai` | `api.z.ai` | `ZAI_API_KEY` |
+| `custom` | `$LLM_BASE_URL` | `$LLM_API_KEY` |
+| `replay` | none | none — replays `captured/llm_cache.json` |
 
 ```bash
-./run.sh record     # rebuilds the .cast files and regenerates the GIFs
+ollama serve && ollama pull llama3.1     # credential-free path
+./run.sh explain
 ```
 
-Requires the `agg` binary: https://github.com/asciinema/agg/releases
+For Ollama you don't strictly need the proxy — k8sgpt speaks to it natively via
+`k8sgpt auth add --backend ollama --model llama3.1`. The proxy exists so one
+command works for every backend.
 
-## 🔑 Z.AI credentials
+**About `replay`:** `captured/llm_cache.json` holds 7 responses captured from GLM-4.5 during the original recording. Prompts that aren't in it return an explicit "no cached response" message rather than anything invented. Two of the current eight findings post-date that capture and will report a miss until you run a live backend once.
 
-The Z.AI proxy reads credentials from `/etc/.z-ai-config` by default. To use your own:
+## Alert triage
 
 ```bash
-# Write your Z.AI config (auto-generated by the z-ai-web-dev-sdk environment)
-cat > .z-ai-config <<EOF
-{
-  "baseUrl": "https://internal-api.z.ai/v1",
-  "apiKey": "Z.ai",
-  "chatId": "<your-chat-id>",
-  "token": "<your-jwt-token>",
-  "userId": "<your-user-id>"
-}
-EOF
-chmod 600 .z-ai-config
+./run.sh triage                 # render the card locally
+SLACK_WEBHOOK_URL=... ./run.sh triage --post-slack
 ```
 
-For Docker, mount it as a secret:
+Reads [`alerts/payment-api-high-error-rate.json`](alerts/payment-api-high-error-rate.json) (a real Alertmanager webhook payload), queries the cluster for the objects it names, asks the model for an analysis grounded in what came back, and renders a Slack card. Every cluster read is live; nothing is pre-baked.
+
+For the same loop performed by real Robusta with a real Prometheus alert, use `make kind-robusta && make kind-fire-alert`.
+
+## Acceptance suite
+
 ```bash
-docker compose up demo    # automatically mounts ./.z-ai-config → /run/secrets/zai-config:ro
+./run.sh uat
 ```
 
-LLM responses are cached to `captured/zai_cache.json` so re-runs are instant. Delete the cache file to force fresh LLM calls.
+17 checks across five groups: the mock serves a genuinely broken cluster (A), real binaries read *and write* to it (B), remediation actually drives findings to zero (C), the LLM proxy answers k8sgpt's request shape (D), and the repo has no hardcoded developer paths, no committed credentials, and no dangling file references (E).
 
-## 📁 Repo layout
+Missing prerequisites report **skip**, never pass. The suite runs in CI on every push, so the badge at the top of this file reflects a run you can click into and read.
+
+## Repo layout
 
 ```
-.
-├── index.html                  # the showcase landing page (dark-themed, single file)
-├── gifs/                        # rendered GIFs (4 demos)
-│   ├── wow_demo.gif             # 30s cinematic 5-challenge walkthrough
-│   ├── k8sgpt_scan.gif          # 25s cluster triage
-│   ├── k8sgpt_explain.gif       # 25s AI diagnosis
-│   └── robusta.gif              # 25s autonomous SRE
-├── scripts/                     # all source code
-│   ├── mock_k8s_server.py      # mock Kubernetes API server (HTTPS, ~1100 lines)
-│   ├── zai_proxy.py            # k8sgpt customrest → Z.AI GLM translation proxy
-│   ├── robusta_demo.py         # Robusta-style autonomous SRE flow
-│   ├── build_casts.py          # builds asciinema casts from captured outputs
-│   ├── build_cast.py           # (legacy) earlier cast builder
-│   └── gen_cert.sh             # generates the self-signed cert for the mock
-├── mock-k8s/                    # kubeconfig + cert (point k8sgpt/kubectl here)
-│   ├── kubeconfig.yaml
-│   ├── cert.pem
-│   └── key.pem
-├── captured/                    # real outputs captured from the binaries
-│   ├── k8sgpt_analyze_text.txt
-│   ├── k8sgpt_analyze_json.txt
-│   ├── k8sgpt_explain.txt
-│   ├── robusta_demo.txt
-│   ├── robusta_ai_response.txt  # the raw GLM-4.5 RCA markdown
-│   ├── zai_cache.json           # cached LLM responses (for instant replay)
-│   └── kubectl_*.txt            # kubectl snapshots
-├── recordings/                  # asciinema casts (source for the GIFs)
-│   ├── k8sgpt_scan.cast
-│   ├── k8sgpt_explain.cast
-│   └── robusta.cast
-├── outputs/                     # curated subset of captured/ for the HTML page
-├── Dockerfile                   # dockerize the whole stack
-├── docker-compose.yml          # three modes: site, demo, robusta
-├── vercel.json                  # Vercel static deploy config
-├── run.sh                       # orchestrator: site | demo | robusta | record | stop
-├── LICENSE                      # MIT
-└── README.md                    # you are here
+├── run.sh                       # mock-path entrypoint
+├── Makefile                     # kind-path entrypoint (make help)
+├── index.html                   # showcase page
+├── scripts/
+│   ├── paths.py                 # every path in the repo derives from here
+│   ├── cluster_fixtures.py      # the broken-cluster data (inert)
+│   ├── cluster_state.py         # mutable state + patch semantics + reconciler
+│   ├── mock_k8s_server.py       # the API server (TLS, discovery, all verbs)
+│   ├── llm_proxy.py             # customrest -> any OpenAI-compatible backend
+│   ├── alert_triage_agent.py    # reference impl of Robusta's loop
+│   ├── remediate.sh             # the seven real kubectl fixes
+│   ├── record_demos.py          # live pty recording -> .cast
+│   ├── cast_to_gif.py           # .cast -> .gif, pure Python
+│   ├── serve_site.py            # static server for index.html
+│   └── run_uat.py               # the acceptance suite
+├── kind/                        # real cluster: config, manifests, robusta values
+├── manifests/                   # the fix manifests remediate.sh applies
+├── alerts/                      # Alertmanager webhook fixtures
+├── gifs/  recordings/           # live recordings and their rendered GIFs
+├── captured/  outputs/          # command output, regenerated by CI
+└── mock-k8s/kubeconfig.yaml     # certs are generated on first boot
 ```
 
-## 🔧 What's real, what's mocked
+## Rebuilding the demos
 
-| Component | Status |
-|---|---|
-| Kubernetes API server | **Mocked at HTTP layer** — implements enough of the K8s REST API to satisfy `kubectl` and `k8sgpt`. Returns realistic broken-cluster state for `payment-prod`. |
-| `k8sgpt` binary (v0.4.36) | **Real** — downloaded from GitHub releases, runs unmodified. All 14 analyzers active. |
-| `kubectl` | **Real** — talks to the mock server normally. |
-| Robusta flow | **Real Python script** that mimics Robusta's alert-driven investigation loop. The LLM call, the cluster queries, and the Slack card format are all real. |
-| GLM-4.5 LLM calls | **Real** — proxied through `zai_proxy.py` to `internal-api.z.ai/v1`. Responses cached for instant replay. |
-| GIFs | **Real** — rendered from asciinema casts via `agg`. The displayed output is verbatim from the real binaries. |
+```bash
+./run.sh record          # re-record all four GIFs from live sessions
+```
 
-## 📜 License
+No external binaries needed — `scripts/cast_to_gif.py` renders with Pillow. If `agg` is on PATH it is used instead.
 
-MIT — see [LICENSE](LICENSE). The upstream tools referenced (K8sGPT, Robusta, kubectl) retain their own licenses.
+## Known limitations
+
+- **`kubectl apply -f` against the mock needs `--validate=false`.** kubectl validates manifests against the apiserver's OpenAPI schema bundle; the mock serves the REST API but not the full schema bundle. `remediate.sh` passes the flag automatically for the mock and omits it for kind. Imperative commands (`set image`, `patch`, `cordon`, `create service`) need no flag.
+- **Node conditions in the kind path are kubelet-owned.** `make kind-disk-pressure` patches `DiskPressure=True` via the status subresource, and the real kubelet reasserts it within ~10s. Run k8sgpt promptly or accept one fewer finding on that path.
+- **No pod logs in the mock.** `kubectl logs` is not implemented, so analyzers and enrichers that read logs have nothing to read. Real Robusta's `logs_enricher` works only on the kind path.
+
+## License
+
+MIT — see [LICENSE](LICENSE).
