@@ -79,7 +79,7 @@ runcmd k8sgpt analyze --kubecontext mock-context --no-cache -n payment-prod --ex
 note "before: count the findings"
 runcmd findings
 note "now fix them with real kubectl writes against the API"
-runcmd ./scripts/remediate.sh
+runcmd bash ./scripts/remediate.sh
 note "after: the same command, against the state those writes produced"
 runcmd findings
 runcmd health
