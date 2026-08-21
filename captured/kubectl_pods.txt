@@ -1,3 +1,3 @@
-NAMESPACE      NAME                          AGE
-payment-prod   payment-api-7c4f5b-x9qkl      79m
-payment-prod   payment-worker-6d8b2c-p3mnr   81m
+NAME                          AGE
+payment-api-7c4f5b-x9qkl      41h
+payment-worker-6d8b2c-p3mnr   42h

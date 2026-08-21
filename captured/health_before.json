@@ -1,0 +1,1 @@
+{"pods_ready": "0/2", "deployments_available": "0/2", "worker3_disk_pressure": "True", "pvc_phase": "Pending", "ingress_class_exists": false, "backend_service_exists": false, "remediations_applied": 0}

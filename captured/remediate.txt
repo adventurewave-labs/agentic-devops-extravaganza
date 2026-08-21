@@ -1,0 +1,25 @@
+
+[1;36m==> 1/7  payment-api CrashLoopBackOff -> roll to an image tag that exists[0m
+deployment.apps/payment-api image updated
+
+[1;36m==> 2/7  payment-worker OOMKilled -> raise the memory limit above the working set[0m
+deployment.apps/payment-worker patched
+
+[1;36m==> 3/7  payment-api-svc has no endpoints -> correct the selector typo[0m
+service/payment-api-svc patched
+
+[1;36m==> 4/7  worker-3 DiskPressure -> cordon and drain the node[0m
+node/worker-3 cordoned
+node/worker-3 already cordoned
+node/worker-3 drained
+
+[1;36m==> 5/7  payment-ingress -> create the missing IngressClass[0m
+ingressclass.networking.k8s.io/nginx created
+
+[1;36m==> 6/7  payment-ingress -> create the missing backend Service[0m
+service/payment-frontend created
+
+[1;36m==> 7/7  payment-data-pvc Pending -> recreate the deleted StorageClass[0m
+storageclass.storage.k8s.io/standard created
+
+[1;32mAll 7 remediations applied. Re-run k8sgpt to see the finding count drop.[0m

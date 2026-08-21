@@ -1,0 +1,12 @@
+NAME                             AGE
+deployment.apps/payment-api      42h
+deployment.apps/payment-worker   42h
+
+NAME                      AGE
+service/payment-api-svc   42h
+
+NAME                                        AGE
+ingress.networking.k8s.io/payment-ingress   42h
+
+NAME                                     AGE
+persistentvolumeclaim/payment-data-pvc   42h
