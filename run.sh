@@ -148,7 +148,7 @@ cmd_remediate() {
   before="$("$K8SGPT" analyze --kubeconfig "$KUBECONFIG" --kubecontext "$KUBE_CONTEXT" \
     --no-cache -n payment-prod 2>/dev/null | grep -cE '^[0-9]+: ' || true)"
   echo "  k8sgpt findings: $before"
-  "$ROOT/scripts/remediate.sh"
+  bash "$ROOT/scripts/remediate.sh"
   echo
   echo "=== AFTER ==="
   local after

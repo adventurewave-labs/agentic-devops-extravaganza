@@ -98,7 +98,7 @@ kind-findings: ## show what Robusta actually did
 .PHONY: kind-remediate
 kind-remediate: ## run the same remediation script against the real cluster
 	TARGET=kind KUBE_CONTEXT=kind-$(KIND_CLUSTER) \
-	  FIXED_API_IMAGE=nginx:1.27-alpine ./scripts/remediate.sh
+	  FIXED_API_IMAGE=nginx:1.27-alpine bash ./scripts/remediate.sh
 	sleep 45
 	$(MAKE) kind-scan
 
