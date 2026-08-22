@@ -35,6 +35,16 @@ if [[ "${TARGET:-mock}" == "kind" ]]; then
   VALIDATE_FLAG=""
 fi
 
+# Two things differ between the mock and a real cluster, so they are inputs
+# rather than literals:
+#   NODE          the mock ships a fixture node called worker-3; kind names its
+#                 nodes <cluster>-worker, <cluster>-worker2.
+#   STORAGE_CLASS the mock's PVC asks for "standard" (deleted); on kind that
+#                 name is already taken by the built-in provisioner, so the
+#                 kind fixture asks for "fast-ssd" instead.
+NODE="${NODE:-worker-3}"
+STORAGE_CLASS="${STORAGE_CLASS:-standard}"
+
 step "1/7  payment-api CrashLoopBackOff -> roll to an image tag that exists"
 kn set image deployment/payment-api "api=${FIXED_API_IMAGE:-registry.io/payments/api:1.4.3}"
 
@@ -46,20 +56,44 @@ step "3/7  payment-api-svc has no endpoints -> correct the selector typo"
 kn patch service payment-api-svc --type=merge -p \
   '{"spec":{"selector":{"app":"payment-api"}}}'
 
-step "4/7  worker-3 DiskPressure -> cordon and drain the node"
-k cordon worker-3
-k drain worker-3 --ignore-daemonsets --delete-emptydir-data --force --timeout=10s 2>/dev/null || true
+step "4/7  $NODE DiskPressure -> cordon and drain the node"
+if ! k get node "$NODE" >/dev/null 2>&1; then
+  echo "  node $NODE is not present on this cluster - skipping"
+elif [[ "$(k get node "$NODE" \
+      -o jsonpath='{.status.conditions[?(@.type=="DiskPressure")].status}')" != "True" ]]; then
+  # On kind the kubelet owns this condition and only reports pressure when the
+  # node is genuinely low on disk, so there is usually nothing to remediate.
+  echo "  $NODE does not report DiskPressure - nothing to do"
+else
+  k cordon "$NODE"
+  k drain "$NODE" --ignore-daemonsets --delete-emptydir-data --force --timeout=30s \
+    2>/dev/null || true
+fi
 
 step "5/7  payment-ingress -> create the missing IngressClass"
-# shellcheck disable=SC2086
-k apply $VALIDATE_FLAG -f "$ROOT/manifests/fix-ingressclass.yaml"
+if k get ingressclass nginx >/dev/null 2>&1; then
+  echo "  IngressClass nginx already exists - nothing to do"
+else
+  # shellcheck disable=SC2086
+  k apply $VALIDATE_FLAG -f "$ROOT/manifests/fix-ingressclass.yaml"
+fi
 
 step "6/7  payment-ingress -> create the missing backend Service"
-kn create service clusterip payment-frontend --tcp=80:80 --dry-run=client -o yaml \
-  | kn apply $VALIDATE_FLAG -f -
+if kn get service payment-frontend >/dev/null 2>&1; then
+  echo "  Service payment-frontend already exists - nothing to do"
+else
+  # shellcheck disable=SC2086
+  kn create service clusterip payment-frontend --tcp=80:80 --dry-run=client -o yaml \
+    | kn apply $VALIDATE_FLAG -f -
+fi
 
-step "7/7  payment-data-pvc Pending -> recreate the deleted StorageClass"
-# shellcheck disable=SC2086
-k apply $VALIDATE_FLAG -f "$ROOT/manifests/fix-storageclass.yaml"
+step "7/7  payment-data-pvc Pending -> provide StorageClass $STORAGE_CLASS"
+if k get storageclass "$STORAGE_CLASS" >/dev/null 2>&1; then
+  echo "  StorageClass $STORAGE_CLASS already exists - nothing to do"
+else
+  # shellcheck disable=SC2086
+  sed "s/^  name: standard$/  name: $STORAGE_CLASS/" \
+    "$ROOT/manifests/fix-storageclass.yaml" | k apply $VALIDATE_FLAG -f -
+fi
 
-printf '\n\033[1;32mAll 7 remediations applied. Re-run k8sgpt to see the finding count drop.\033[0m\n'
+printf '\n\033[1;32mRemediation pass complete. Re-run k8sgpt to see the finding count drop.\033[0m\n'

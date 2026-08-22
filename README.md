@@ -230,7 +230,9 @@ No external binaries needed — `scripts/cast_to_gif.py` renders with Pillow. If
 ## Known limitations
 
 - **`kubectl apply -f` against the mock needs `--validate=false`.** kubectl validates manifests against the apiserver's OpenAPI schema bundle; the mock serves the REST API but not the full schema bundle. `remediate.sh` passes the flag automatically for the mock and omits it for kind. Imperative commands (`set image`, `patch`, `cordon`, `create service`) need no flag.
-- **Node conditions in the kind path are kubelet-owned.** `make kind-disk-pressure` patches `DiskPressure=True` via the status subresource, and the real kubelet reasserts it within ~10s. Run k8sgpt promptly or accept one fewer finding on that path.
+- **Node conditions in the kind path are kubelet-owned.** `make kind-disk-pressure` patches `DiskPressure=True` via the status subresource, and the real kubelet reasserts it within ~10s. Run k8sgpt promptly or accept one fewer finding on that path. `remediate.sh` skips the cordon/drain step when the node reports no pressure rather than pretending it fixed something.
+- **Two fixture names differ between the backends**, so `remediate.sh` takes them as inputs. The mock ships a node called `worker-3`; kind names its nodes `<cluster>-worker2`. The mock's PVC asks for the deleted StorageClass `standard`; on kind that name belongs to the built-in provisioner, so the kind fixture asks for `fast-ssd`. `make kind-remediate` passes `NODE=` and `STORAGE_CLASS=` accordingly.
+- **The kind path will not reach zero findings.** Pods roll on the kubelet's schedule and node conditions are not ours to set, so CI asserts that remediation *strictly reduces* the finding count there, rather than asserting a number. Only the mock path is deterministic enough for 8 → 0.
 - **No pod logs in the mock.** `kubectl logs` is not implemented, so analyzers and enrichers that read logs have nothing to read. Real Robusta's `logs_enricher` works only on the kind path.
 
 ## License
