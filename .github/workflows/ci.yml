@@ -150,6 +150,7 @@ jobs:
           count=$(grep -cE '^[0-9]+: ' /tmp/kind-scan.txt)
           echo "real-cluster findings: $count"
           test "$count" -ge 5 || { echo "::error::expected >=5 findings on kind, got $count"; exit 1; }
+          echo "$count" > /tmp/kind-before.txt
 
       - name: Install real Robusta
         run: make kind-robusta
@@ -158,7 +159,16 @@ jobs:
         run: make kind-fire-alert
 
       - name: Remediate the real cluster
-        run: make kind-remediate
+        run: |
+          make kind-remediate | tee /tmp/kind-remediate.txt
+          before=$(cat /tmp/kind-before.txt)
+          after=$(grep -cE '^[0-9]+: ' /tmp/kind-remediate.txt || true)
+          echo "real-cluster findings: $before -> $after"
+          # A real cluster will not necessarily reach zero — the kubelet owns
+          # node conditions and pods roll on their own schedule — so the
+          # assertion is that remediation strictly improved things.
+          test "$after" -lt "$before" || {
+            echo "::error::remediation did not reduce findings ($before -> $after)"; exit 1; }
 
       - name: Diagnostics
         if: always()
