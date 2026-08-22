@@ -97,9 +97,15 @@ kind-findings: ## show what Robusta actually did
 
 .PHONY: kind-remediate
 kind-remediate: ## run the same remediation script against the real cluster
+	# NODE and STORAGE_CLASS differ on a real cluster: kind names its nodes
+	# <cluster>-worker2, and "standard" is already taken by kind's built-in
+	# provisioner, so the kind fixture PVC asks for fast-ssd instead.
 	TARGET=kind KUBE_CONTEXT=kind-$(KIND_CLUSTER) \
+	  NODE=$(KIND_CLUSTER)-worker2 \
+	  STORAGE_CLASS=fast-ssd \
 	  FIXED_API_IMAGE=nginx:1.27-alpine bash ./scripts/remediate.sh
-	sleep 45
+	@echo "waiting for the real kubelet to roll the pods..."
+	sleep 90
 	$(MAKE) kind-scan
 
 .PHONY: kind-down
