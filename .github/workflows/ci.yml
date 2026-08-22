@@ -5,6 +5,11 @@ on:
     branches: ["**"]
   pull_request:
   workflow_dispatch:
+    inputs:
+      llm_model:
+        description: "Model to use for the live --explain check"
+        default: "meta-llama/llama-3.1-8b-instruct"
+        required: false
 
 env:
   K8SGPT_VERSION: v0.4.36
@@ -176,3 +181,123 @@ jobs:
           kubectl get pods -A
           kubectl -n payment-prod describe pods || true
           kubectl logs -l app=robusta-runner --tail=200 || true
+
+  explain-live:
+    name: live LLM — k8sgpt --explain against a real model
+    runs-on: ubuntu-latest
+    # Costs money and needs a credential, so this never runs on push. Dispatch
+    # it to turn "works with any OpenAI-compatible backend" from a claim into
+    # a checked fact. Everything else in this workflow runs without a key.
+    if: github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Require the API key
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: |
+          if [ -z "$OPENROUTER_API_KEY" ]; then
+            echo "::error::OPENROUTER_API_KEY is not set. Add it under" \
+                 "Settings > Secrets and variables > Actions, then dispatch again."
+            exit 1
+          fi
+          echo "key present (${#OPENROUTER_API_KEY} chars)"
+
+      - name: Install k8sgpt and kubectl
+        run: |
+          curl -fsSL "https://github.com/k8sgpt-ai/k8sgpt/releases/download/${K8SGPT_VERSION}/k8sgpt_Linux_x86_64.tar.gz" \
+            | sudo tar xz -C /usr/local/bin k8sgpt
+          curl -fsSL "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl" \
+            -o /usr/local/bin/kubectl
+          sudo chmod +x /usr/local/bin/kubectl /usr/local/bin/k8sgpt
+
+      - name: Configure k8sgpt customrest backend
+        env:
+          MODEL: ${{ inputs.llm_model }}
+        run: |
+          mkdir -p ~/.config/k8sgpt
+          cat > ~/.config/k8sgpt/k8sgpt.yaml <<YAML
+          ai:
+              providers:
+                  - name: customrest
+                    model: ${MODEL}
+                    password: none
+                    baseurl: http://127.0.0.1:8081
+                    temperature: 0.7
+                    topp: 0.5
+                    topk: 50
+                    maxtokens: 2048
+                    customheaders: []
+              defaultprovider: ""
+          kubeconfig: ""
+          kubecontext: ""
+          verbose: false
+          version: 0.4.36
+          YAML
+
+      - name: Start the stack against OpenRouter with an EMPTY cache
+        env:
+          LLM_BACKEND: openrouter
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          LLM_MODEL: ${{ inputs.llm_model }}
+          # A fresh cache path is the point: with the committed cache in play
+          # this job could pass on a cache hit and prove nothing about the
+          # provider. Every answer below has to come off the wire.
+          AOPS_LLM_CACHE: /tmp/live-cache.json
+        run: |
+          echo '{}' > /tmp/live-cache.json
+          ./run.sh demo
+          curl -s http://127.0.0.1:8081/ | python3 -m json.tool
+
+      - name: k8sgpt --explain must get a live answer, not a cached one
+        env:
+          LLM_BACKEND: openrouter
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          LLM_MODEL: ${{ inputs.llm_model }}
+          AOPS_LLM_CACHE: /tmp/live-cache.json
+        run: |
+          k8sgpt analyze --kubeconfig mock-k8s/kubeconfig.yaml \
+            --kubecontext mock-context --no-cache -n payment-prod \
+            --explain --backend customrest --filter Node | tee /tmp/explain.txt
+
+          grep -q "replay mode" /tmp/explain.txt && {
+            echo "::error::answered from the replay cache, not the provider"; exit 1; }
+          grep -q "\[llm error" /tmp/explain.txt && {
+            echo "::error::provider returned an error"; exit 1; }
+
+          python3 - <<'PY'
+          import json, sys, urllib.request
+          stats = json.load(urllib.request.urlopen("http://127.0.0.1:8081/"))
+          live = stats["stats"]["live_calls"]
+          print("live calls:", live, "| errors:", stats["stats"]["errors"])
+          print("cache recorded by:", stats["cache_recorded_by"])
+          if live < 1:
+              sys.exit("::error::no live provider call was made")
+          if stats["stats"]["errors"]:
+              sys.exit("::error::provider errors during the run")
+          PY
+
+      - name: Explain every finding, so the cache is complete
+        env:
+          LLM_BACKEND: openrouter
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          LLM_MODEL: ${{ inputs.llm_model }}
+          AOPS_LLM_CACHE: /tmp/live-cache.json
+        run: |
+          k8sgpt analyze --kubeconfig mock-k8s/kubeconfig.yaml \
+            --kubecontext mock-context --no-cache -n payment-prod \
+            --explain --backend customrest > /tmp/explain-all.txt 2>&1
+          echo "findings explained: $(grep -cE '^[0-9]+: ' /tmp/explain-all.txt)"
+          python3 -c "import json;d=json.load(open('/tmp/live-cache.json'));print('cache entries:',len(d))"
+
+      - name: Upload the freshly recorded cache
+        uses: actions/upload-artifact@v4
+        with:
+          name: llm-cache-live
+          path: |
+            /tmp/live-cache.json
+            /tmp/explain-all.txt
