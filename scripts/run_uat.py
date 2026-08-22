@@ -51,11 +51,17 @@ class Suite:
             print(f"          {detail}")
 
     def check(self, ident, description, fn):
+        """Run one check. A callable returning ok=None means "could not run
+        here" and is recorded as SKIP, never as a pass — the whole point of
+        this suite is that an unverifiable claim is not a verified one."""
         try:
             ok, detail = fn()
         except Exception as exc:
             self.record(ident, description, FAIL, f"{type(exc).__name__}: {exc}")
             return False
+        if ok is None:
+            self.record(ident, description, SKIP, detail)
+            return True
         self.record(ident, description, PASS if ok else FAIL, detail)
         return ok
 
@@ -334,7 +340,13 @@ def _tracked_files():
     run that matches the JWT pattern, so the check failed at random on a file
     that is not committed and never will be.
     """
-    result = run(["git", "-C", str(paths.ROOT), "ls-files", "-z"], timeout=30)
+    try:
+        result = run(["git", "-C", str(paths.ROOT), "ls-files", "-z"], timeout=30)
+    except (FileNotFoundError, OSError):
+        # e.g. inside the container image, which ships no git binary. The
+        # hygiene checks are claims about the repository, so there is nothing
+        # meaningful to assert here - they report SKIP rather than pass.
+        return None
     if result.returncode != 0:
         return None
     return [paths.ROOT / name
@@ -344,7 +356,7 @@ def _tracked_files():
 def _no_hardcoded_paths():
     tracked = _tracked_files()
     if tracked is None:
-        return True, "not a git checkout - skipping"
+        return None, "no git checkout here - run this from a clone"
     bad = []
     for path in tracked:
         if not path.is_file():
@@ -367,7 +379,7 @@ def _no_committed_secrets():
     import re
     tracked = _tracked_files()
     if tracked is None:
-        return True, "not a git checkout - skipping"
+        return None, "no git checkout here - run this from a clone"
     patterns = [r"eyJ[A-Za-z0-9_-]{20,}", r"sk-[A-Za-z0-9]{20,}",
                 r"xox[baprs]-[A-Za-z0-9-]{10,}",
                 r"-----BEGIN [A-Z ]*PRIVATE KEY-----"]
