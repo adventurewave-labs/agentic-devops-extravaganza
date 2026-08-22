@@ -156,24 +156,55 @@ def save_cache():
         log(f"cache save failed: {exc}")
 
 
-def cache_key(model, prompt):
-    return hashlib.sha256(f"{model}|{prompt}".encode("utf-8")).hexdigest()
+# Cache entries are keyed on the PROMPT ALONE.
+#
+# They used to be keyed on "<model>|<prompt>", which quietly made replay mode
+# a function of which model name you happened to have configured: a cache
+# recorded against glm-4.5 produced nothing but misses for anyone running
+# llama3.1, and the only reason replay worked at all was one hardcoded
+# glm-4.5 fallback. A cached answer to a question is useful regardless of who
+# answered it, so the model is now recorded *in* the entry instead of in its
+# address.
+LEGACY_KEY_MODELS = ("glm-4.5",)
+
+
+def cache_key(prompt):
+    return hashlib.sha256(prompt.encode("utf-8")).hexdigest()
+
+
+def legacy_cache_keys(model, prompt):
+    """Keys this prompt would have had under the old model|prompt scheme."""
+    models = [model, *LEGACY_KEY_MODELS]
+    return [hashlib.sha256(f"{m}|{prompt}".encode("utf-8")).hexdigest()
+            for m in models if m]
+
+
+def entry_text(entry):
+    """Read either cache shape: a bare string (v1) or {response, model} (v2)."""
+    if isinstance(entry, dict):
+        return entry.get("response", "")
+    return entry
+
+
+def entry_model(entry):
+    if isinstance(entry, dict):
+        return entry.get("model", "unknown")
+    return "glm-4.5 (legacy entry)"
 
 
 def call_llm(prompt, model=None, temperature=0.7, top_p=0.5):
     """Return the assistant text for a prompt, from cache or from the provider."""
     model = model or CONFIG.model
-    key = cache_key(model, prompt)
-    # Legacy cache entries were keyed against glm-4.5; honour them so the
-    # committed recording stays replayable after a backend switch.
-    legacy = cache_key("glm-4.5", prompt)
+    key = cache_key(prompt)
 
     with CACHE_LOCK:
-        for candidate in (key, legacy):
+        for candidate in (key, *legacy_cache_keys(model, prompt)):
             if candidate in CACHE:
+                entry = CACHE[candidate]
                 STATS["cache_hits"] += 1
-                log(f"cache HIT ({candidate[:8]})")
-                return CACHE[candidate], "cache"
+                log(f"cache HIT ({candidate[:8]}, recorded from "
+                    f"{entry_model(entry)})")
+                return entry_text(entry), "cache"
 
     if CONFIG.backend == "replay":
         STATS["errors"] += 1
@@ -203,7 +234,13 @@ def call_llm(prompt, model=None, temperature=0.7, top_p=0.5):
         text = (data.get("choices", [{}])[0].get("message", {})
                 .get("content", ""))
         with CACHE_LOCK:
-            CACHE[key] = text
+            CACHE[key] = {
+                "response": text,
+                "model": model,
+                "backend": CONFIG.backend,
+                "captured_at": datetime.now(timezone.utc)
+                .strftime("%Y-%m-%dT%H:%M:%SZ"),
+            }
             save_cache()
         STATS["live_calls"] += 1
         return text, "live"
@@ -254,8 +291,10 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
         })
 
     def do_GET(self):
+        recorded_by = sorted({entry_model(e) for e in CACHE.values()})
         self._send({"ok": True, "time": time.time(),
                     "cached_entries": len(CACHE),
+                    "cache_recorded_by": recorded_by,
                     "stats": STATS, **CONFIG.describe()})
 
     def log_message(self, *args):

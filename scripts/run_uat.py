@@ -171,11 +171,15 @@ def main():
     if args.no_llm:
         suite.skip("D1", "LLM proxy reports its backend", "--no-llm passed")
         suite.skip("D2", "proxy answers k8sgpt's customrest shape", "--no-llm passed")
+        suite.skip("D3", "the replay cache is not keyed on the model name",
+                   "--no-llm passed")
     else:
         suite.check("D1", "LLM proxy reports its backend honestly",
                     _proxy_health)
         suite.check("D2", "proxy answers k8sgpt's customrest request shape",
                     _proxy_shape)
+        suite.check("D3", "the replay cache is not keyed on the model name",
+                    _cache_is_model_independent)
 
     print("\n=== E. repo hygiene ===")
     suite.check("E1", "no absolute developer paths anywhere in the repo",
@@ -373,6 +377,27 @@ def _no_hardcoded_paths():
                 bad.append(f"{path.relative_to(paths.ROOT)}:{needle}")
     return not bad, (f"{len(tracked)} tracked files clean" if not bad
                      else f"found {bad[:5]}")
+
+
+def _cache_is_model_independent():
+    """Regression guard: the replay cache must not be addressed by model name.
+
+    Entries used to be keyed on "<model>|<prompt>", which silently made replay
+    a function of which model you happened to have configured - a cache
+    recorded against glm-4.5 produced nothing but misses for anyone running
+    llama3.1. Checked in-process; no network, no provider required.
+    """
+    sys.path.insert(0, str(paths.SCRIPTS_DIR))
+    import importlib
+    llm_proxy = importlib.import_module("llm_proxy")
+    prompt = "uat probe: is the payment-api pod healthy?"
+    key = llm_proxy.cache_key(prompt)
+    keys_a = llm_proxy.legacy_cache_keys("model-a", prompt)
+    keys_b = llm_proxy.legacy_cache_keys("model-b", prompt)
+    ok = (key not in keys_a and key not in keys_b
+          and keys_a[-1] == keys_b[-1])
+    return ok, (f"prompt-only key {key[:12]}, shared legacy fallback "
+                f"{keys_a[-1][:12]}")
 
 
 def _no_committed_secrets():
