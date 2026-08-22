@@ -94,6 +94,12 @@ jobs:
           count=$(./run.sh scan | grep -cE '^[0-9]+: ')
           test "$count" -eq 8 || { echo "::error::reset left $count findings"; exit 1; }
 
+      - name: Docs must agree with the code
+        # Cheap, needs no services, and catches the failure mode the rest of
+        # this workflow cannot see: prose that was true when written and went
+        # stale one commit later.
+        run: python scripts/check_docs.py
+
       - name: Acceptance suite
         env:
           LLM_BACKEND: replay
