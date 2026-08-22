@@ -170,7 +170,27 @@ For Ollama you don't strictly need the proxy — k8sgpt speaks to it natively vi
 `k8sgpt auth add --backend ollama --model llama3.1`. The proxy exists so one
 command works for every backend.
 
-**About `replay`:** `captured/llm_cache.json` holds 7 responses captured from GLM-4.5 during the original recording. Prompts that aren't in it return an explicit "no cached response" message rather than anything invented. Two of the current eight findings post-date that capture and will report a miss until you run a live backend once.
+**About `replay`:** `captured/llm_cache.json` holds 7 responses captured from GLM-4.5 during the original recording. Prompts that aren't in it return an explicit "no cached response" message rather than anything invented. Two of the current eight findings post-date that capture and report a miss until someone runs a live backend once.
+
+Cache entries are keyed on the **prompt alone**, and each records which model produced it:
+
+```json
+{ "663da7a2…": { "response": "…", "model": "meta-llama/llama-3.1-8b-instruct",
+                 "backend": "openrouter", "captured_at": "2026-08-22T…Z" } }
+```
+
+They used to be keyed on `<model>|<prompt>`, which quietly made replay a function of whichever model name you had configured — a cache recorded against GLM-4.5 produced nothing but misses for anyone running Llama, and the only reason replay worked at all was a single hardcoded fallback. A cached answer is useful regardless of who answered it, so the model now lives *in* the entry rather than in its address. UAT check D3 guards the regression; entries in the old format are still read.
+
+### Proving the live path
+
+Everything above runs without a credential, so nothing on `push` ever exercises a real provider — which would leave "works with any OpenAI-compatible backend" as a claim rather than a fact. The `explain-live` CI job closes that gap:
+
+1. Add `OPENROUTER_API_KEY` under **Settings → Secrets and variables → Actions**.
+2. **Actions → CI → Run workflow**, optionally overriding the model.
+
+It runs `--explain` against a genuinely empty cache (`AOPS_LLM_CACHE=/tmp/live-cache.json`), so a cache hit cannot make it pass, and fails if the proxy reports zero live calls. It also explains all eight findings and uploads the resulting cache as an artifact — download it, drop it over `captured/llm_cache.json`, and replay mode covers every finding for everyone with no credential at all.
+
+The job is `workflow_dispatch` only. It never runs on push, so it never spends your money without you asking.
 
 ## Alert triage
 
@@ -189,7 +209,7 @@ For the same loop performed by real Robusta with a real Prometheus alert, use `m
 ./run.sh uat
 ```
 
-17 checks across five groups: the mock serves a genuinely broken cluster (A), real binaries read *and write* to it (B), remediation actually drives findings to zero (C), the LLM proxy answers k8sgpt's request shape (D), and the repo has no hardcoded developer paths, no committed credentials, and no dangling file references (E).
+18 checks across five groups: the mock serves a genuinely broken cluster (A), real binaries read *and write* to it (B), remediation actually drives findings to zero (C), the LLM proxy answers k8sgpt's request shape and its cache is not keyed on the model name (D), and the repo has no hardcoded developer paths, no committed credentials, and no dangling file references (E).
 
 Missing prerequisites report **skip**, never pass. The suite runs in CI on every push, so the badge at the top of this file reflects a run you can click into and read.
 
