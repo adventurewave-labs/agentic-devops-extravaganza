@@ -324,10 +324,30 @@ def _proxy_shape():
     return ok, f'keys={sorted(data)} source={data.get("x-source")}'
 
 
+def _tracked_files():
+    """Files git actually tracks.
+
+    Both hygiene checks below are claims about the *repository*, not about
+    whatever happens to be sitting in the working tree. Scanning the working
+    tree made E2 flaky: mock-k8s/key.pem is generated at first boot and
+    gitignored, but a freshly generated RSA key occasionally contains a base64
+    run that matches the JWT pattern, so the check failed at random on a file
+    that is not committed and never will be.
+    """
+    result = run(["git", "-C", str(paths.ROOT), "ls-files", "-z"], timeout=30)
+    if result.returncode != 0:
+        return None
+    return [paths.ROOT / name
+            for name in result.stdout.split("\0") if name]
+
+
 def _no_hardcoded_paths():
+    tracked = _tracked_files()
+    if tracked is None:
+        return True, "not a git checkout - skipping"
     bad = []
-    for path in paths.ROOT.rglob("*"):
-        if not path.is_file() or ".git/" in str(path):
+    for path in tracked:
+        if not path.is_file():
             continue
         if path.suffix not in {".py", ".sh", ".yml", ".yaml", ".md", ".json"} \
                 and path.name not in {"Dockerfile", "Makefile", "run.sh"}:
@@ -339,16 +359,21 @@ def _no_hardcoded_paths():
         for needle in ("/home/z/", "/Users/"):
             if needle in text and "no absolute developer paths" not in text:
                 bad.append(f"{path.relative_to(paths.ROOT)}:{needle}")
-    return not bad, "clean" if not bad else f"found {bad[:5]}"
+    return not bad, (f"{len(tracked)} tracked files clean" if not bad
+                     else f"found {bad[:5]}")
 
 
 def _no_committed_secrets():
     import re
+    tracked = _tracked_files()
+    if tracked is None:
+        return True, "not a git checkout - skipping"
     patterns = [r"eyJ[A-Za-z0-9_-]{20,}", r"sk-[A-Za-z0-9]{20,}",
-                r"xox[baprs]-[A-Za-z0-9-]{10,}"]
+                r"xox[baprs]-[A-Za-z0-9-]{10,}",
+                r"-----BEGIN [A-Z ]*PRIVATE KEY-----"]
     hits = []
-    for path in paths.ROOT.rglob("*"):
-        if not path.is_file() or ".git/" in str(path):
+    for path in tracked:
+        if not path.is_file():
             continue
         try:
             text = path.read_text(errors="ignore")
@@ -357,7 +382,9 @@ def _no_committed_secrets():
         for pattern in patterns:
             if re.search(pattern, text):
                 hits.append(str(path.relative_to(paths.ROOT)))
-    return not hits, "no credential-shaped strings" if not hits else f"{hits}"
+                break
+    return not hits, (f"{len(tracked)} tracked files, no credential-shaped "
+                      f"strings" if not hits else f"{hits}")
 
 
 def _referenced_files_exist():
