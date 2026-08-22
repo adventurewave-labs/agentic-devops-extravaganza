@@ -2491,7 +2491,7 @@ AI Provider: AI not used; --explain not set</span>
 <section class="section uat-section" id="uat">
   <div class="container">
     <span class="eyebrow">Acceptance suite</span>
-    <h2 class="h2">17 checks you can run yourself</h2>
+    <h2 class="h2">18 checks you can run yourself</h2>
     <p class="lead">
       No score is baked into this page. The suite reports <strong>pass / fail / skip</strong> per
       check — skipping anything whose prerequisite binary or service is missing rather than
@@ -2521,13 +2521,14 @@ AI Provider: AI not used; --explain not set</span>
           <tr><td><code>C2</code></td><td>reset restores the broken state</td></tr>
           <tr><td><code>D1</code></td><td>the LLM proxy reports its backend honestly (including replay mode)</td></tr>
           <tr><td><code>D2</code></td><td>the proxy answers k8sgpt's customrest request shape</td></tr>
+          <tr><td><code>D3</code></td><td>the replay cache is keyed on the prompt, not the model name</td></tr>
           <tr><td><code>E1</code></td><td>no absolute developer paths anywhere in the repo</td></tr>
           <tr><td><code>E2</code></td><td>no credentials committed</td></tr>
           <tr><td><code>E3</code></td><td>every file referenced by run.sh exists</td></tr>
       </tbody>
     </table>
     <div class="uat-summary">
-      <span class="uat-big-num">17</span>
+      <span class="uat-big-num">18</span>
       <span class="uat-summary-text">
         checks · results are whatever your run produces, not a number typed into this page.
         Checks B* and C* need the <code>kubectl</code> and <code>k8sgpt</code> binaries and the
@@ -2804,7 +2805,7 @@ AI Provider: AI not used; --explain not set</span>
 └── <span class="key">outputs/</span>
     ├── k8sgpt_analyze.json      <span class="c"># raw JSON from k8sgpt analyze</span>
     ├── k8sgpt_analyze.txt       <span class="c"># raw text from k8sgpt analyze</span>
-    ├── k8sgpt_explain.txt       <span class="c"># raw output from k8sgpt --explain</span>
+    ├── k8sgpt_analyze_after.txt <span class="c"># the same scan after remediation</span>
     ├── alert_triage.json        <span class="c"># what the triage agent produced</span>
     └── uat_results.json         <span class="c"># last acceptance-suite run</span></pre>
       </div>
@@ -2864,7 +2865,6 @@ AI Provider: AI not used; --explain not set</span>
         <ul class="footer-list">
           <li><a href="outputs/k8sgpt_analyze.json">k8sgpt_analyze.json</a></li>
           <li><a href="outputs/k8sgpt_analyze.txt">k8sgpt_analyze.txt</a></li>
-          <li><a href="outputs/k8sgpt_explain.txt">k8sgpt_explain.txt</a></li>
           <li><a href="outputs/alert_triage.json">alert_triage.json</a></li>
           <li><a href="outputs/uat_results.json">uat_results.json</a></li>
         </ul>
