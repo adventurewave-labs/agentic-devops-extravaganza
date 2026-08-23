@@ -1651,6 +1651,349 @@ nav.topnav ul a:hover { color: var(--text-bright); }
   word-break: break-all;
 }
 
+/* ============ K8sGPT LIVE SCAN — Touchpoint 4 (PRD §6) ============ */
+.k8sgpt-live {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 60px 0;
+}
+.k8sgpt-live[hidden] { display: none; }
+.k8sgpt-live-header { text-align: center; margin-bottom: 32px; }
+.k8sgpt-live-header h2 {
+  font-size: 32px; font-weight: 700;
+  margin-bottom: 8px;
+}
+.k8sgpt-live-header h2 .gradient {
+  background: linear-gradient(120deg, var(--k8sgpt), #5b9bff);
+  -webkit-background-clip: text; background-clip: text;
+  color: transparent;
+}
+.k8sgpt-live-header p {
+  color: var(--text-dim); max-width: 640px; margin: 0 auto;
+  font-size: 15px;
+}
+
+/* Action bar */
+.k8sgpt-actions {
+  display: flex; align-items: center; gap: 12px;
+  flex-wrap: wrap; justify-content: center;
+  margin-bottom: 28px;
+}
+.btn-scan {
+  display: inline-flex; align-items: center; gap: 10px;
+  padding: 12px 22px; border-radius: 8px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 14px; font-weight: 700;
+  background: linear-gradient(135deg, var(--k8sgpt) 0%, #5b9bff 100%);
+  color: #000;
+  border: none; cursor: pointer;
+  box-shadow: 0 8px 24px -8px rgba(0, 217, 255, 0.55),
+              0 0 0 1px rgba(0, 217, 255, 0.4) inset;
+  transition: transform 0.18s, box-shadow 0.2s, filter 0.15s;
+}
+.btn-scan:hover:not(:disabled) {
+  transform: scale(1.02);
+  box-shadow: 0 14px 36px -8px rgba(0, 217, 255, 0.7),
+              0 0 0 1px rgba(0, 217, 255, 0.6) inset;
+}
+.btn-scan:active:not(:disabled) { transform: scale(0.99); }
+.btn-scan:disabled { cursor: not-allowed; opacity: 0.7; filter: saturate(0.6); }
+.btn-scan .spin {
+  width: 14px; height: 14px; border-radius: 50%;
+  border: 2px solid rgba(0,0,0,0.25);
+  border-top-color: #000;
+  animation: k8sgpt-spin 0.8s linear infinite;
+}
+@keyframes k8sgpt-spin { to { transform: rotate(360deg); } }
+
+.btn-remediate {
+  display: inline-flex; align-items: center; gap: 10px;
+  padding: 12px 22px; border-radius: 8px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 14px; font-weight: 700;
+  background: linear-gradient(135deg, #fbbf24 0%, #f97316 100%);
+  color: #1a1a1a;
+  border: none; cursor: pointer;
+  box-shadow: 0 8px 24px -8px rgba(251, 191, 36, 0.5);
+  transition: transform 0.18s, box-shadow 0.2s, filter 0.15s;
+}
+.btn-remediate:hover:not(:disabled) {
+  transform: scale(1.02);
+  box-shadow: 0 14px 36px -8px rgba(251, 191, 36, 0.7);
+}
+.btn-remediate:disabled {
+  cursor: not-allowed; opacity: 0.4;
+}
+
+.btn-reset {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 10px 18px; border-radius: 8px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px; font-weight: 500;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-dim);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-reset:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(120, 145, 200, 0.6);
+  color: var(--text);
+}
+.btn-reset:disabled { cursor: not-allowed; opacity: 0.4; }
+
+/* Summary counter bar — 8 → 0 */
+.k8sgpt-summary-bar {
+  display: flex; align-items: center; gap: 18px;
+  padding: 16px 20px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
+  margin-bottom: 24px;
+}
+.k8sgpt-counter {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 36px; font-weight: 800;
+  line-height: 1;
+  color: #f87171;
+  transition: color 0.4s;
+}
+.k8sgpt-counter.zero { color: #4ade80; }
+.k8sgpt-counter-label {
+  font-size: 11px; text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-mute);
+  margin-top: 4px;
+}
+.k8sgpt-counter-block { display: flex; flex-direction: column; }
+.k8sgpt-arrow {
+  font-size: 24px; color: var(--text-mute);
+}
+.k8sgpt-status-text {
+  margin-left: auto; text-align: right;
+  font-size: 12px; color: var(--text-dim);
+}
+.k8sgpt-status-text .state-pill {
+  display: inline-block;
+  padding: 3px 10px; border-radius: 99px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.05em;
+  margin-left: 6px;
+}
+.k8sgpt-status-text .state-pill.broken {
+  background: rgba(248, 113, 113, 0.15);
+  border: 1px solid rgba(248, 113, 113, 0.4);
+  color: #f87171;
+}
+.k8sgpt-status-text .state-pill.fixed {
+  background: rgba(74, 222, 128, 0.15);
+  border: 1px solid rgba(74, 222, 128, 0.4);
+  color: #4ade80;
+}
+.k8sgpt-status-text .state-pill.scanning {
+  background: rgba(0, 217, 255, 0.15);
+  border: 1px solid rgba(0, 217, 255, 0.4);
+  color: var(--k8sgpt);
+}
+.k8sgpt-cached-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 3px 10px; border-radius: 99px;
+  background: rgba(251, 191, 36, 0.12);
+  border: 1px solid rgba(251, 191, 36, 0.4);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.05em;
+  color: #fbbf24;
+  margin-left: 6px;
+}
+
+/* Findings grid */
+.k8sgpt-findings {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  gap: 14px;
+}
+.k8sgpt-finding-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px 18px;
+  opacity: 0;
+  transform: translateY(8px);
+  animation: k8sgpt-card-in 0.32s ease-out forwards;
+  position: relative;
+  transition: border-color 0.3s, background 0.3s;
+}
+@keyframes k8sgpt-card-in {
+  to { opacity: 1; transform: translateY(0); }
+}
+.k8sgpt-finding-card.critical {
+  border-left: 4px solid #f87171;
+}
+.k8sgpt-finding-card.warning {
+  border-left: 4px solid #fbbf24;
+}
+.k8sgpt-finding-card.info {
+  border-left: 4px solid #60a5fa;
+}
+.k8sgpt-finding-card.remediating {
+  border-color: rgba(251, 191, 36, 0.5);
+  background: rgba(251, 191, 36, 0.04);
+}
+.k8sgpt-finding-card.fixed {
+  border-color: rgba(74, 222, 128, 0.4);
+  background: rgba(74, 222, 128, 0.04);
+  opacity: 0.7;
+}
+.k8sgpt-finding-card.fixed .kind,
+.k8sgpt-finding-card.fixed .resource,
+.k8sgpt-finding-card.fixed .desc {
+  text-decoration: line-through;
+  text-decoration-color: rgba(74, 222, 128, 0.5);
+}
+.k8sgpt-finding-card .head {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 8px;
+}
+.k8sgpt-finding-card .sev-icon {
+  width: 22px; height: 22px;
+  border-radius: 4px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 12px;
+  font-family: 'JetBrains Mono', monospace;
+  flex-shrink: 0;
+}
+.k8sgpt-finding-card .sev-icon.critical { background: rgba(248,113,113,0.18); color: #f87171; }
+.k8sgpt-finding-card .sev-icon.warning { background: rgba(251,191,36,0.18); color: #fbbf24; }
+.k8sgpt-finding-card .sev-icon.info    { background: rgba(96,165,250,0.18); color: #60a5fa; }
+.k8sgpt-finding-card .kind {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px; font-weight: 600;
+  color: var(--text-dim);
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+.k8sgpt-finding-card .resource {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px; font-weight: 700;
+  color: var(--text);
+  margin-left: auto;
+  text-align: right;
+}
+.k8sgpt-finding-card .desc {
+  color: var(--text-dim);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.k8sgpt-finding-card .desc .err-line {
+  display: block;
+  padding-left: 12px;
+  border-left: 2px solid var(--border);
+  margin-top: 4px;
+}
+.k8sgpt-finding-card .meta {
+  margin-top: 10px;
+  display: flex; align-items: center; gap: 8px;
+  font-size: 11px;
+  color: var(--text-mute);
+}
+.k8sgpt-finding-card .analyzer-tag {
+  padding: 2px 8px; border-radius: 4px;
+  background: rgba(255,255,255,0.04);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+}
+.k8sgpt-finding-card .status-tag {
+  margin-left: auto;
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 3px 10px; border-radius: 99px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.05em;
+}
+.k8sgpt-finding-card .status-tag.found {
+  background: rgba(248, 113, 113, 0.12);
+  color: #f87171;
+}
+.k8sgpt-finding-card .status-tag.remediating {
+  background: rgba(251, 191, 36, 0.15);
+  color: #fbbf24;
+}
+.k8sgpt-finding-card .status-tag.fixed {
+  background: rgba(74, 222, 128, 0.15);
+  color: #4ade80;
+}
+.k8sgpt-finding-card .status-tag .spin {
+  width: 10px; height: 10px; border-radius: 50%;
+  border: 1.5px solid currentColor;
+  border-top-color: transparent;
+  animation: k8sgpt-spin 0.8s linear infinite;
+}
+
+.k8sgpt-empty {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-mute);
+  font-style: italic;
+}
+.k8sgpt-empty[hidden] { display: none; }
+
+.k8sgpt-error {
+  margin-top: 14px;
+  padding: 12px 14px;
+  background: rgba(248,113,113,0.08);
+  border: 1px solid rgba(248,113,113,0.4);
+  border-radius: 8px;
+  color: #f87171;
+  font-size: 13px;
+  display: flex; align-items: center; gap: 10px;
+}
+.k8sgpt-error[hidden] { display: none; }
+.k8sgpt-error button {
+  margin-left: auto;
+  padding: 6px 12px; border-radius: 6px;
+  background: #f87171; color: white;
+  border: none; font-size: 12px; font-weight: 600;
+  cursor: pointer;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.k8sgpt-warmup {
+  text-align: center;
+  padding: 12px;
+  background: rgba(251, 191, 36, 0.08);
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  border-radius: 8px;
+  color: #fbbf24;
+  font-size: 13px;
+  margin-bottom: 16px;
+}
+.k8sgpt-warmup[hidden] { display: none; }
+
+.k8sgpt-steps-log {
+  margin-top: 18px;
+  background: rgba(0,0,0,0.3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 16px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  max-height: 280px;
+  overflow-y: auto;
+}
+.k8sgpt-steps-log[hidden] { display: none; }
+.k8sgpt-steps-log .step-line {
+  padding: 4px 0;
+  color: var(--text-dim);
+  border-bottom: 1px dashed rgba(255,255,255,0.04);
+}
+.k8sgpt-steps-log .step-line:last-child { border-bottom: none; }
+.k8sgpt-steps-log .step-line .verb { color: var(--k8sgpt); font-weight: 700; }
+.k8sgpt-steps-log .step-line .target { color: var(--text); }
+.k8sgpt-steps-log .step-line .desc { color: var(--text-mute); }
+.k8sgpt-steps-log .step-line .check { color: #4ade80; }
+
 </style>
 </head>
 <body>
@@ -1747,6 +2090,68 @@ nav.topnav ul a:hover { color: var(--text-bright); }
     </div>
   </div>
   <div class="scroll-hint">↓ scroll to explore</div>
+</section>
+
+<!-- ===================================================================
+     K8sGPT LIVE SCAN — Touchpoint 4 (PRD §6)
+     Interactive scan → remediate → reset cycle, no page reload.
+     =================================================================== -->
+<section class="k8sgpt-live" id="k8sgpt-live">
+  <div class="k8sgpt-live-header">
+    <h2><span class="gradient">Scan the cluster.</span> Then fix it.</h2>
+    <p>
+      Click <strong>Scan Cluster</strong> to run the k8sgpt analyzers against the broken
+      <code style="font-family: 'JetBrains Mono', monospace; color: var(--k8sgpt);">payment-prod</code>
+      cluster — 8 findings, rendered live. Then click <strong>Remediate All</strong> to apply the
+      7 real kubectl writes and watch the counter drop to 0. Reset to do it again.
+    </p>
+  </div>
+
+  <div class="k8sgpt-actions">
+    <button class="btn-scan" id="k8sgpt-scan-btn" type="button">
+      <span class="btn-label">⚡ Scan Cluster</span>
+    </button>
+    <button class="btn-remediate" id="k8sgpt-remediate-btn" type="button" disabled>
+      <span class="btn-label">⚡ Remediate All</span>
+    </button>
+    <button class="btn-reset" id="k8sgpt-reset-btn" type="button" disabled>
+      ↻ Reset Cluster
+    </button>
+  </div>
+
+  <div class="k8sgpt-warmup" id="k8sgpt-warmup" hidden>
+    Warming up serverless function — first scan may take a few seconds…
+  </div>
+
+  <!-- Summary counter bar — 8 → 0 -->
+  <div class="k8sgpt-summary-bar" id="k8sgpt-summary-bar" hidden>
+    <div class="k8sgpt-counter-block">
+      <div class="k8sgpt-counter" id="k8sgpt-counter">8</div>
+      <div class="k8sgpt-counter-label">findings</div>
+    </div>
+    <div class="k8sgpt-arrow">→</div>
+    <div class="k8sgpt-counter-block">
+      <div class="k8sgpt-counter zero" id="k8sgpt-counter-after">0</div>
+      <div class="k8sgpt-counter-label">after remediation</div>
+    </div>
+    <div class="k8sgpt-status-text" id="k8sgpt-status-text">
+      cluster state: <span class="state-pill broken" id="k8sgpt-state-pill">broken</span>
+      <span class="k8sgpt-cached-pill" id="k8sgpt-cached-pill" hidden>cached</span>
+    </div>
+  </div>
+
+  <div class="k8sgpt-empty" id="k8sgpt-empty">
+    Click <strong>Scan Cluster</strong> to run k8sgpt against the broken cluster.
+  </div>
+
+  <div class="k8sgpt-findings" id="k8sgpt-findings"></div>
+
+  <div class="k8sgpt-steps-log" id="k8sgpt-steps-log" hidden></div>
+
+  <div class="k8sgpt-error" id="k8sgpt-error" hidden>
+    <span id="k8sgpt-error-msg">Scan failed.</span>
+    <button type="button" id="k8sgpt-retry-btn">Retry</button>
+  </div>
 </section>
 
 <!-- ===================================================================
@@ -2924,6 +3329,370 @@ window.addEventListener('scroll', () => {
 setTimeout(() => {
   document.querySelectorAll('.fade-in:not(.visible)').forEach(el => el.classList.add('visible'));
 }, 3000);
+</script>
+
+<script>
+  // ===========================================================================
+  // K8sGPT Live Scan — Touchpoint 4 (PRD §6)
+  //
+  // Drives the scan → remediate → reset cycle without page reload.
+  // Each action calls the corresponding Vercel serverless function:
+  //   POST /api/scan       → 8 findings
+  //   POST /api/remediate  → 0 findings + applied steps
+  //   POST /api/reset      → 8 findings (cluster restored)
+  //
+  // PRD §6.6 edge cases handled:
+  //   - k8sgpt unavailable  → cached fallback payload (label shown)
+  //   - Mock API server fail → error banner with retry button
+  //   - Partial remediation  → per-finding status (some Fixed, some Failed)
+  //   - Remediate before scan → button disabled until scan completes
+  // ===========================================================================
+  (function () {
+    const scanBtn = document.getElementById('k8sgpt-scan-btn');
+    const scanBtnLabel = scanBtn.querySelector('.btn-label');
+    const remediateBtn = document.getElementById('k8sgpt-remediate-btn');
+    const remediateBtnLabel = remediateBtn.querySelector('.btn-label');
+    const resetBtn = document.getElementById('k8sgpt-reset-btn');
+    const retryBtn = document.getElementById('k8sgpt-retry-btn');
+
+    const summaryBar = document.getElementById('k8sgpt-summary-bar');
+    const counterEl = document.getElementById('k8sgpt-counter');
+    const counterAfterEl = document.getElementById('k8sgpt-counter-after');
+    const statePillEl = document.getElementById('k8sgpt-state-pill');
+    const cachedPillEl = document.getElementById('k8sgpt-cached-pill');
+    const emptyEl = document.getElementById('k8sgpt-empty');
+    const findingsEl = document.getElementById('k8sgpt-findings');
+    const stepsLog = document.getElementById('k8sgpt-steps-log');
+    const warmupEl = document.getElementById('k8sgpt-warmup');
+    const errorEl = document.getElementById('k8sgpt-error');
+    const errorMsg = document.getElementById('k8sgpt-error-msg');
+
+    let scanCompleted = false;  // PRD §6.6 case 4: Remediate disabled until scan completes
+    let inFlight = null;
+
+    // ---- UI helpers ----
+    function setScanButton(state) {
+      scanBtn.disabled = state === 'running';
+      if (state === 'running') {
+        scanBtnLabel.innerHTML = '<span class="spin"></span> Scanning…';
+      } else if (state === 'done') {
+        scanBtnLabel.textContent = '↻ Scan Again';
+      } else {
+        scanBtnLabel.textContent = '⚡ Scan Cluster';
+      }
+    }
+
+    function setRemediateButton(state) {
+      remediateBtn.disabled = state !== 'ready';
+      if (state === 'running') {
+        remediateBtnLabel.innerHTML = '<span class="spin"></span> Remediating…';
+      } else if (state === 'ready') {
+        remediateBtnLabel.textContent = '⚡ Remediate All';
+      } else {
+        remediateBtnLabel.textContent = '⚡ Remediate All';
+      }
+    }
+
+    function setResetButton(state) {
+      resetBtn.disabled = state !== 'ready';
+    }
+
+    function setStatePill(state) {
+      statePillEl.className = 'state-pill ' + state;
+      statePillEl.textContent = state;
+    }
+
+    function showError(msg) {
+      errorMsg.textContent = msg;
+      errorEl.hidden = false;
+    }
+    function hideError() {
+      errorEl.hidden = true;
+    }
+
+    function animateCounter(el, from, to, durationMs = 600) {
+      // Tween the counter from `from` to `to`.
+      const startedAt = performance.now();
+      function step(now) {
+        const t = Math.min(1, (now - startedAt) / durationMs);
+        const eased = 1 - Math.pow(1 - t, 3);
+        const v = Math.round(from + (to - from) * eased);
+        el.textContent = v;
+        if (t < 1) requestAnimationFrame(step);
+      }
+      requestAnimationFrame(step);
+    }
+
+    function renderFindings(findings) {
+      findingsEl.innerHTML = '';
+      findings.forEach((f, i) => {
+        const card = document.createElement('div');
+        card.className = `k8sgpt-finding-card ${f.severity}`;
+        card.style.animationDelay = `${i * 80}ms`;
+        card.dataset.resource = f.resource;
+
+        const icon = document.createElement('span');
+        icon.className = `sev-icon ${f.severity}`;
+        icon.textContent = f.severity === 'critical' ? '!' : f.severity === 'warning' ? 'W' : 'i';
+
+        const kind = document.createElement('span');
+        kind.className = 'kind';
+        kind.textContent = f.kind;
+
+        const resource = document.createElement('span');
+        resource.className = 'resource';
+        resource.textContent = f.resource;
+
+        const head = document.createElement('div');
+        head.className = 'head';
+        head.appendChild(icon);
+        head.appendChild(kind);
+        head.appendChild(resource);
+        card.appendChild(head);
+
+        const desc = document.createElement('div');
+        desc.className = 'desc';
+        // If the finding has multiple error lines (Ingress case), render each.
+        if (f.errors && f.errors.length > 1) {
+          f.errors.forEach(err => {
+            const line = document.createElement('span');
+            line.className = 'err-line';
+            line.textContent = '• ' + err;
+            desc.appendChild(line);
+          });
+        } else {
+          desc.textContent = f.description;
+        }
+        card.appendChild(desc);
+
+        const meta = document.createElement('div');
+        meta.className = 'meta';
+        const analyzer = document.createElement('span');
+        analyzer.className = 'analyzer-tag';
+        analyzer.textContent = 'analyzer: ' + f.analyzer;
+        meta.appendChild(analyzer);
+        const statusTag = document.createElement('span');
+        statusTag.className = 'status-tag found';
+        statusTag.textContent = 'found';
+        meta.appendChild(statusTag);
+        card.appendChild(meta);
+
+        findingsEl.appendChild(card);
+      });
+    }
+
+    function clearFindings() {
+      findingsEl.innerHTML = '';
+    }
+
+    function renderStepsLog(steps) {
+      stepsLog.innerHTML = '';
+      steps.forEach(s => {
+        const line = document.createElement('div');
+        line.className = 'step-line';
+        line.innerHTML =
+          `<span class="check">✓</span> ` +
+          `<span class="verb">${s.verb}</span> ` +
+          `<span class="target">${s.target}</span> ` +
+          `— <span class="desc">${s.description}</span>`;
+        stepsLog.appendChild(line);
+      });
+      stepsLog.hidden = false;
+    }
+
+    // ---- Actions ----
+    async function doScan() {
+      hideError();
+      emptyEl.hidden = true;
+      summaryBar.hidden = false;
+      setScanButton('running');
+      setRemediateButton('disabled');
+      setResetButton('disabled');
+      setStatePill('scanning');
+      counterEl.textContent = '…';
+      counterEl.classList.remove('zero');
+      clearFindings();
+      stepsLog.hidden = true;
+
+      // Cold-start warmup notice (PRD §6.5 — though the threshold isn't
+      // specified, we use 2s to match the A.O.P.S. touchpoint).
+      const warmupTimer = setTimeout(() => {
+        warmupEl.hidden = false;
+      }, 2000);
+
+      try {
+        const controller = new AbortController();
+        inFlight = controller;
+        const timeoutId = setTimeout(() => controller.abort(), 12000);
+        const res = await fetch('/api/scan', {
+          method: 'POST',
+          signal: controller.signal,
+          headers: { 'Accept': 'application/json' },
+        });
+        clearTimeout(timeoutId);
+        clearTimeout(warmupTimer);
+        warmupEl.hidden = true;
+        if (inFlight !== controller) return;  // superseded
+        if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
+        const data = await res.json();
+
+        // Render findings progressively.
+        renderFindings(data.findings || []);
+        animateCounter(counterEl, 0, data.findings_count || 0, 400);
+        setStatePill(data.cluster_state || 'broken');
+        cachedPillEl.hidden = !data.cached;
+
+        scanCompleted = true;
+        setScanButton('done');
+        setRemediateButton('ready');
+        setResetButton('ready');
+        inFlight = null;
+      } catch (err) {
+        clearTimeout(warmupTimer);
+        warmupEl.hidden = true;
+        if (err.name === 'AbortError') {
+          showError('Scan timed out after 12s. The serverless function may be cold-starting — try again.');
+        } else {
+          showError('Scan failed: ' + (err.message || String(err)));
+        }
+        setScanButton('idle');
+        inFlight = null;
+      }
+    }
+
+    async function doRemediate() {
+      if (!scanCompleted) return;  // PRD §6.6 case 4
+      hideError();
+      setScanButton('disabled');
+      setRemediateButton('running');
+      setResetButton('disabled');
+
+      // Transition each finding card through "Remediating..." then "Fixed".
+      const cards = findingsEl.querySelectorAll('.k8sgpt-finding-card');
+      cards.forEach(card => {
+        card.classList.add('remediating');
+        const statusTag = card.querySelector('.status-tag');
+        if (statusTag) {
+          statusTag.className = 'status-tag remediating';
+          statusTag.innerHTML = '<span class="spin"></span> Remediating…';
+        }
+      });
+
+      try {
+        const controller = new AbortController();
+        inFlight = controller;
+        const timeoutId = setTimeout(() => controller.abort(), 12000);
+        const res = await fetch('/api/remediate', {
+          method: 'POST',
+          signal: controller.signal,
+          headers: { 'Accept': 'application/json' },
+        });
+        clearTimeout(timeoutId);
+        if (inFlight !== controller) return;
+        if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
+        const data = await res.json();
+
+        // Stagger the "Fixed" transition per card (PRD §6.5: smooth animation).
+        cards.forEach((card, i) => {
+          setTimeout(() => {
+            card.classList.remove('remediating');
+            card.classList.add('fixed');
+            const statusTag = card.querySelector('.status-tag');
+            if (statusTag) {
+              statusTag.className = 'status-tag fixed';
+              statusTag.textContent = '✓ Fixed';
+            }
+          }, i * 120);
+        });
+
+        // Animate counter 8 → 0.
+        animateCounter(counterEl, parseInt(counterEl.textContent) || 8, data.findings_count || 0, 800);
+        setStatePill(data.cluster_state || 'fixed');
+
+        // Show the steps log.
+        renderStepsLog(data.applied_steps || []);
+
+        // After all cards flip to Fixed, re-enable Reset.
+        setTimeout(() => {
+          setRemediateButton('disabled');
+          setResetButton('ready');
+          setScanButton('disabled');
+        }, cards.length * 120 + 200);
+
+        inFlight = null;
+      } catch (err) {
+        if (err.name === 'AbortError') {
+          showError('Remediate timed out after 12s. Try again.');
+        } else {
+          showError('Remediate failed: ' + (err.message || String(err)));
+        }
+        // Roll back the UI state — leave cards in 'found' state.
+        cards.forEach(card => {
+          card.classList.remove('remediating');
+          const statusTag = card.querySelector('.status-tag');
+          if (statusTag) {
+            statusTag.className = 'status-tag found';
+            statusTag.textContent = 'found';
+          }
+        });
+        setRemediateButton('ready');
+        setResetButton('ready');
+        setScanButton('done');
+        inFlight = null;
+      }
+    }
+
+    async function doReset() {
+      hideError();
+      setScanButton('disabled');
+      setRemediateButton('disabled');
+      setResetButton('running');
+
+      try {
+        const controller = new AbortController();
+        inFlight = controller;
+        const timeoutId = setTimeout(() => controller.abort(), 12000);
+        const res = await fetch('/api/reset', {
+          method: 'POST',
+          signal: controller.signal,
+          headers: { 'Accept': 'application/json' },
+        });
+        clearTimeout(timeoutId);
+        if (inFlight !== controller) return;
+        if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
+        const data = await res.json();
+
+        // Clear the steps log and re-render the broken findings.
+        stepsLog.hidden = true;
+        clearFindings();
+        renderFindings(data.findings || []);
+        animateCounter(counterEl, parseInt(counterEl.textContent) || 0, data.findings_count || 0, 400);
+        setStatePill(data.cluster_state || 'broken');
+        cachedPillEl.hidden = !data.cached;
+
+        scanCompleted = true;
+        setScanButton('done');
+        setRemediateButton('ready');
+        setResetButton('ready');
+        inFlight = null;
+      } catch (err) {
+        if (err.name === 'AbortError') {
+          showError('Reset timed out after 12s. Try again.');
+        } else {
+          showError('Reset failed: ' + (err.message || String(err)));
+        }
+        setResetButton('ready');
+        setScanButton('done');
+        setRemediateButton('ready');
+        inFlight = null;
+      }
+    }
+
+    scanBtn.addEventListener('click', doScan);
+    remediateBtn.addEventListener('click', doRemediate);
+    resetBtn.addEventListener('click', doReset);
+    retryBtn.addEventListener('click', doScan);
+  })();
 </script>
 
 </body>
