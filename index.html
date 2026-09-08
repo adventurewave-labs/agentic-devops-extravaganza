@@ -1651,6 +1651,322 @@ nav.topnav ul a:hover { color: var(--text-bright); }
   word-break: break-all;
 }
 
+/* =====================================================================
+   LIVE SCAN TOUCHPOINT
+   ===================================================================== */
+.live-scan-section {
+  background: linear-gradient(180deg, var(--bg-1) 0%, var(--bg-0) 100%);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+.live-scan-header {
+  text-align: center;
+  margin-bottom: 48px;
+}
+.live-scan-header .eyebrow { display: block; text-align: center; }
+.live-scan-header .h2 { margin-bottom: 12px; }
+
+/* Action buttons row */
+.live-scan-actions {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: 40px;
+}
+.btn-scan {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 28px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-decoration: none;
+}
+.btn-scan:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none !important;
+}
+.btn-scan-primary {
+  background: linear-gradient(135deg, var(--k8sgpt) 0%, #5b9bff 100%);
+  color: #000;
+  box-shadow: 0 4px 24px rgba(0, 217, 255, 0.25);
+}
+.btn-scan-primary:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(0, 217, 255, 0.4); }
+.btn-scan-remediate {
+  background: linear-gradient(135deg, var(--robusta) 0%, #ff3d6e 100%);
+  color: #000;
+  box-shadow: 0 4px 24px rgba(255, 122, 61, 0.25);
+}
+.btn-scan-remediate:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(255, 122, 61, 0.4); }
+.btn-scan-reset {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  border-color: var(--border-strong);
+}
+.btn-scan-reset:hover:not(:disabled) { background: rgba(255, 255, 255, 0.08); border-color: rgba(120, 145, 200, 0.6); }
+
+/* Spinner inside buttons */
+.btn-spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(0,0,0,0.2);
+  border-top-color: #000;
+  border-radius: 50%;
+  animation: btn-spin 0.6s linear infinite;
+}
+@keyframes btn-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Summary bar */
+.live-scan-summary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  margin-bottom: 32px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 14px;
+  flex-wrap: wrap;
+}
+.summary-total {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--critical);
+}
+.summary-total.healthy { color: var(--ok); }
+.summary-critical { color: var(--critical); }
+.summary-warning { color: var(--warn); }
+.summary-info { color: #5b9bff; }
+.summary-separator { color: var(--text-muted); }
+
+/* Findings grid */
+.findings-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 16px;
+  margin-bottom: 32px;
+}
+@media (max-width: 400px) {
+  .findings-grid { grid-template-columns: 1fr; }
+}
+
+/* Finding card */
+.finding-card {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.4s ease, transform 0.4s ease, border-color 0.3s, background 0.3s;
+  position: relative;
+  overflow: hidden;
+}
+.finding-card.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+.finding-card:hover {
+  border-color: var(--border-strong);
+  background: rgba(26, 33, 56, 0.8);
+}
+.finding-card.remediating {
+  border-color: rgba(255, 122, 61, 0.4);
+}
+.finding-card.fixed {
+  border-color: rgba(0, 255, 163, 0.3);
+  opacity: 0.6;
+}
+.finding-card.fixed::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 255, 163, 0.03);
+  pointer-events: none;
+}
+
+.finding-card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.finding-severity {
+  font-size: 14px;
+  line-height: 1;
+}
+.finding-severity.critical { color: var(--critical); }
+.finding-severity.warning { color: var(--warn); }
+.finding-severity.info { color: #5b9bff; }
+.finding-kind-badge {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+}
+.finding-resource {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--text-bright);
+  margin-left: auto;
+}
+.finding-description {
+  font-size: 13px;
+  color: var(--text-dim);
+  line-height: 1.5;
+  margin-bottom: 10px;
+}
+.finding-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.finding-analyzer {
+  color: var(--k8sgpt);
+  background: rgba(0, 217, 255, 0.06);
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+.finding-namespace {
+  color: var(--text-muted);
+}
+
+/* Fix status overlay inside card */
+.finding-status {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 6px;
+  display: none;
+}
+.finding-status.remediating {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--robusta);
+  background: rgba(255, 122, 61, 0.1);
+  border: 1px solid rgba(255, 122, 61, 0.3);
+}
+.finding-status.fixed {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ok);
+  background: rgba(0, 255, 163, 0.08);
+  border: 1px solid rgba(0, 255, 163, 0.2);
+}
+
+/* Resolved banner */
+.live-scan-resolved {
+  text-align: center;
+  padding: 32px;
+  background: rgba(0, 255, 163, 0.04);
+  border: 1px solid rgba(0, 255, 163, 0.15);
+  border-radius: 12px;
+  display: none;
+}
+.live-scan-resolved.visible { display: block; }
+.live-scan-resolved .h3 {
+  color: var(--ok);
+  margin-bottom: 8px;
+}
+.live-scan-resolved p {
+  color: var(--text-dim);
+  font-size: 14px;
+}
+
+/* Error message */
+.live-scan-error {
+  text-align: center;
+  padding: 20px;
+  background: rgba(255, 61, 110, 0.06);
+  border: 1px solid rgba(255, 61, 110, 0.2);
+  border-radius: 8px;
+  color: var(--critical);
+  font-size: 14px;
+  display: none;
+  margin-bottom: 20px;
+}
+.live-scan-error.visible { display: block; }
+.live-scan-error .retry-link {
+  color: var(--k8sgpt);
+  text-decoration: underline;
+  cursor: pointer;
+  margin-left: 8px;
+}
+
+/* Health state comparison */
+.health-comparison {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 24px;
+  align-items: center;
+  margin-top: 32px;
+  max-width: 720px;
+  margin-left: auto;
+  margin-right: auto;
+}
+@media (max-width: 600px) {
+  .health-comparison { grid-template-columns: 1fr; gap: 16px; }
+}
+.health-col {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 20px;
+}
+.health-col-title {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}
+.health-col-title.before { color: var(--critical); }
+.health-col-title.after { color: var(--ok); }
+.health-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+  font-size: 13px;
+}
+.health-row-label { color: var(--text-muted); }
+.health-row-value {
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 600;
+}
+.health-arrow {
+  font-size: 24px;
+  color: var(--text-muted);
+  text-align: center;
+}
+@media (max-width: 600px) {
+  .health-arrow { display: none; }
+}
+
 </style>
 </head>
 <body>
@@ -1707,14 +2023,14 @@ nav.topnav ul a:hover { color: var(--text-bright); }
       backend writes the root-cause analysis, and every command on this page is one you can run.
     </p>
     <div class="hero-cta">
-      <a class="btn btn-primary" href="#remediate-demo">
+      <a class="btn btn-primary" href="#live-scan">
+        <span>🔍</span> Scan Cluster
+      </a>
+      <a class="btn btn-ghost" href="#remediate-demo">
         <span>▶</span> Watch the remediation demo
       </a>
       <a class="btn btn-ghost" href="#architecture">
         Architecture
-      </a>
-      <a class="btn btn-ghost" href="#uat">
-        Acceptance suite
       </a>
     </div>
     <div class="hero-deploy-row">
@@ -1820,6 +2136,85 @@ nav.topnav ul a:hover { color: var(--text-bright); }
         <div class="wow-challenge-icon" style="background: linear-gradient(135deg, #00ffa3, #00d9ff)">5</div>
         <div class="wow-challenge-title">payment-data-pvc</div>
         <div class="wow-challenge-desc">Pending → Bound (StorageClass recreated)</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================================================================
+     LIVE K8SGPT SCAN TOUCHPOINT — Interactive 8→0 cycle
+     =================================================================== -->
+<section class="section live-scan-section" id="live-scan">
+  <div class="container">
+    <div class="live-scan-header">
+      <span class="eyebrow">Interactive · Live K8sGPT Scan</span>
+      <h2 class="h2">Scan. Remediate. Verify.</h2>
+      <p class="lead" style="margin: 0 auto; text-align: center;">
+        Hit the button. Watch K8sGPT discover 8 real findings from the broken cluster,
+        then remediate them all and re-scan to see 0. The full 8→0 cycle, live.
+      </p>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="live-scan-actions">
+      <button class="btn-scan btn-scan-primary" id="btn-scan" type="button">
+        <span id="btn-scan-icon">🔍</span>
+        <span id="btn-scan-text">Scan Cluster</span>
+      </button>
+      <button class="btn-scan btn-scan-remediate" id="btn-remediate" type="button" style="display:none;">
+        <span id="btn-remediate-icon">🛠️</span>
+        <span id="btn-remediate-text">Remediate All</span>
+      </button>
+      <button class="btn-scan btn-scan-reset" id="btn-reset" type="button" style="display:none;">
+        <span id="btn-reset-icon">🔄</span>
+        <span id="btn-reset-text">Reset Cluster</span>
+      </button>
+    </div>
+
+    <!-- Error display -->
+    <div class="live-scan-error" id="scan-error">
+      <span id="scan-error-text">Scan timed out.</span>
+      <span class="retry-link" id="scan-error-retry">Retry</span>
+    </div>
+
+    <!-- Summary bar -->
+    <div class="live-scan-summary" id="scan-summary" style="display:none;">
+      <span class="summary-total" id="summary-total-count">0 findings</span>
+      <span class="summary-separator">·</span>
+      <span class="summary-critical" id="summary-critical">0 critical</span>
+      <span class="summary-separator">·</span>
+      <span class="summary-warning" id="summary-warning">0 warning</span>
+      <span class="summary-separator">·</span>
+      <span class="summary-info" id="summary-info">0 info</span>
+    </div>
+
+    <!-- Findings grid -->
+    <div class="findings-grid" id="findings-grid"></div>
+
+    <!-- Resolved banner -->
+    <div class="live-scan-resolved" id="scan-resolved">
+      <h3 class="h3">✓ All findings resolved</h3>
+      <p>The cluster is healthy. K8sGPT re-scan confirms 0 findings.</p>
+    </div>
+
+    <!-- Health comparison (shown after remediation) -->
+    <div class="health-comparison" id="health-comparison" style="display:none;">
+      <div class="health-col">
+        <div class="health-col-title before">Before Remediation</div>
+        <div class="health-row"><span class="health-row-label">Pods ready</span><span class="health-row-value" style="color:var(--critical)">0/2</span></div>
+        <div class="health-row"><span class="health-row-label">Deployments</span><span class="health-row-value" style="color:var(--critical)">0/2</span></div>
+        <div class="health-row"><span class="health-row-label">DiskPressure</span><span class="health-row-value" style="color:var(--critical)">True</span></div>
+        <div class="health-row"><span class="health-row-label">PVC phase</span><span class="health-row-value" style="color:var(--warn)">Pending</span></div>
+        <div class="health-row"><span class="health-row-label">IngressClass</span><span class="health-row-value" style="color:var(--critical)">✗</span></div>
+      </div>
+      <div class="health-arrow">→</div>
+      <div class="health-col">
+        <div class="health-col-title after">After Remediation</div>
+        <div class="health-row"><span class="health-row-label">Pods ready</span><span class="health-row-value" style="color:var(--ok)">2/2</span></div>
+        <div class="health-row"><span class="health-row-label">Deployments</span><span class="health-row-value" style="color:var(--ok)">2/2</span></div>
+        <div class="health-row"><span class="health-row-label">DiskPressure</span><span class="health-row-value" style="color:var(--ok)">False</span></div>
+        <div class="health-row"><span class="health-row-label">PVC phase</span><span class="health-row-value" style="color:var(--ok)">Bound</span></div>
+        <div class="health-row"><span class="health-row-label">IngressClass</span><span class="health-row-value" style="color:var(--ok)">✓</span></div>
       </div>
     </div>
   </div>
@@ -2924,6 +3319,291 @@ window.addEventListener('scroll', () => {
 setTimeout(() => {
   document.querySelectorAll('.fade-in:not(.visible)').forEach(el => el.classList.add('visible'));
 }, 3000);
+
+/* =====================================================================
+   LIVE K8SGPT SCAN TOUCHPOINT — Interactive 8→0 cycle
+   ===================================================================== */
+(function() {
+  'use strict';
+
+  // DOM refs
+  const btnScan      = document.getElementById('btn-scan');
+  const btnScanIcon  = document.getElementById('btn-scan-icon');
+  const btnScanText  = document.getElementById('btn-scan-text');
+  const btnRemediate     = document.getElementById('btn-remediate');
+  const btnRemediateIcon = document.getElementById('btn-remediate-icon');
+  const btnRemediateText = document.getElementById('btn-remediate-text');
+  const btnReset        = document.getElementById('btn-reset');
+  const btnResetIcon    = document.getElementById('btn-reset-icon');
+  const btnResetText    = document.getElementById('btn-reset-text');
+  const scanError       = document.getElementById('scan-error');
+  const scanErrorText   = document.getElementById('scan-error-text');
+  const scanErrorRetry  = document.getElementById('scan-error-retry');
+  const scanSummary     = document.getElementById('scan-summary');
+  const summaryTotal    = document.getElementById('summary-total-count');
+  const summaryCritical = document.getElementById('summary-critical');
+  const summaryWarning  = document.getElementById('summary-warning');
+  const summaryInfo     = document.getElementById('summary-info');
+  const findingsGrid    = document.getElementById('findings-grid');
+  const scanResolved    = document.getElementById('scan-resolved');
+  const healthComp      = document.getElementById('health-comparison');
+
+  const API_BASE = '/api/k8sgpt-scan';
+  const TIMEOUT_MS = 15000;
+
+  // App state
+  let state = 'idle'; // idle | scanning | scanned | remediating | resolved
+
+  function spinner() {
+    const s = document.createElement('span');
+    s.className = 'btn-spinner';
+    return s;
+  }
+
+  function severityEmoji(sev) {
+    if (sev === 'critical') return '🔴';
+    if (sev === 'warning')  return '🟡';
+    return '🟢';
+  }
+
+  function renderFindings(findings, animate) {
+    findingsGrid.innerHTML = '';
+    findings.forEach((f, i) => {
+      const card = document.createElement('div');
+      card.className = 'finding-card';
+      card.dataset.id = f.id;
+      card.innerHTML = `
+        <div class="finding-status" data-status="status-${f.id}"></div>
+        <div class="finding-card-header">
+          <span class="finding-severity ${f.severity}">${severityEmoji(f.severity)}</span>
+          <span class="finding-kind-badge">${f.kind}</span>
+          <span class="finding-resource">${f.resource}</span>
+        </div>
+        <div class="finding-description">${f.description}</div>
+        <div class="finding-meta">
+          <span class="finding-analyzer">${f.analyzer}</span>
+          <span class="finding-namespace">${f.namespace}</span>
+        </div>
+      `;
+      findingsGrid.appendChild(card);
+
+      if (animate) {
+        setTimeout(() => card.classList.add('visible'), 100 * (i + 1));
+      } else {
+        card.classList.add('visible');
+      }
+    });
+  }
+
+  function updateSummary(findings) {
+    const total = findings.length;
+    const critical = findings.filter(f => f.severity === 'critical').length;
+    const warning  = findings.filter(f => f.severity === 'warning').length;
+    const info     = findings.filter(f => f.severity === 'info').length;
+
+    scanSummary.style.display = 'flex';
+    summaryTotal.textContent = total + ' finding' + (total !== 1 ? 's' : '');
+    summaryTotal.className = 'summary-total' + (total === 0 ? ' healthy' : '');
+    summaryCritical.textContent = critical + ' critical';
+    summaryWarning.textContent  = warning + ' warning';
+    summaryInfo.textContent     = info + ' info';
+  }
+
+  function animateCounter(from, to, duration, callback) {
+    const start = performance.now();
+    function tick(now) {
+      const t = Math.min((now - start) / duration, 1);
+      const val = Math.round(from + (to - from) * t);
+      if (callback) callback(val);
+      if (t < 1) requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+  }
+
+  function hideError() { scanError.classList.remove('visible'); }
+  function showError(msg) {
+    scanErrorText.textContent = msg;
+    scanError.classList.add('visible');
+  }
+
+  function clearFindings() {
+    findingsGrid.innerHTML = '';
+    scanSummary.style.display = 'none';
+    scanResolved.classList.remove('visible');
+    healthComp.style.display = 'none';
+  }
+
+  function fetchAPI(action) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
+    return fetch(API_BASE + '?action=' + action, { signal: controller.signal })
+      .then(res => {
+        clearTimeout(timeout);
+        if (!res.ok) throw new Error('API returned ' + res.status);
+        return res.json();
+      })
+      .catch(err => {
+        clearTimeout(timeout);
+        if (err.name === 'AbortError') {
+          throw new Error('Request timed out. The scan took too long.');
+        }
+        throw err;
+      });
+  }
+
+  // ---- SCAN ----
+  function doScan() {
+    if (state === 'scanning' || state === 'remediating') return;
+    state = 'scanning';
+    hideError();
+    clearFindings();
+
+    // Disable scan button, show spinner
+    btnScan.disabled = true;
+    btnScanIcon.textContent = '';
+    btnScanIcon.appendChild(spinner());
+    btnScanText.textContent = 'Scanning...';
+    btnRemediate.style.display = 'none';
+    btnReset.style.display = 'none';
+
+    fetchAPI('scan')
+      .then(data => {
+        state = 'scanned';
+        renderFindings(data.findings, true);
+        updateSummary(data.findings);
+
+        // Enable rescan
+        btnScan.disabled = false;
+        btnScanIcon.textContent = '🔍';
+        btnScanText.textContent = 'Rescan';
+
+        // Show remediate button
+        if (data.findings.length > 0) {
+          btnRemediate.style.display = 'inline-flex';
+        }
+      })
+      .catch(err => {
+        state = 'idle';
+        btnScan.disabled = false;
+        btnScanIcon.textContent = '🔍';
+        btnScanText.textContent = 'Scan Cluster';
+        showError(err.message || 'Scan failed. Please try again.');
+      });
+  }
+
+  // ---- REMEDIATE ----
+  function doRemediate() {
+    if (state !== 'scanned') return;
+    state = 'remediating';
+
+    btnRemediate.disabled = true;
+    btnRemediateIcon.textContent = '';
+    btnRemediateIcon.appendChild(spinner());
+    btnRemediateText.textContent = 'Remediating...';
+    btnScan.disabled = true;
+
+    // Mark all cards as remediating
+    const cards = findingsGrid.querySelectorAll('.finding-card');
+    cards.forEach(card => {
+      card.classList.add('remediating');
+      const statusEl = card.querySelector('.finding-status');
+      statusEl.className = 'finding-status remediating';
+      statusEl.innerHTML = '<span class="btn-spinner" style="width:10px;height:10px;border-width:1.5px;border-color:rgba(255,122,61,0.2);border-top-color:var(--robusta)"></span> Fixing...';
+    });
+
+    fetchAPI('remediate')
+      .then(data => {
+        // Transition each card to fixed with stagger
+        const totalCards = cards.length;
+        let fixedCount = 0;
+
+        cards.forEach((card, i) => {
+          setTimeout(() => {
+            card.classList.remove('remediating');
+            card.classList.add('fixed');
+            const statusEl = card.querySelector('.finding-status');
+            statusEl.className = 'finding-status fixed';
+            statusEl.textContent = '✓ Fixed';
+            fixedCount++;
+
+            // Animate summary counter
+            const remaining = totalCards - fixedCount;
+            summaryTotal.textContent = remaining + ' finding' + (remaining !== 1 ? 's' : '');
+            if (remaining === 0) {
+              summaryTotal.className = 'summary-total healthy';
+            }
+
+            // After all cards are fixed
+            if (fixedCount === totalCards) {
+              finishRemediation(data);
+            }
+          }, 300 * (i + 1));
+        });
+      })
+      .catch(err => {
+        state = 'scanned';
+        btnRemediate.disabled = false;
+        btnRemediateIcon.textContent = '🛠️';
+        btnRemediateText.textContent = 'Remediate All';
+        btnScan.disabled = false;
+        showError(err.message || 'Remediation failed. Please try again.');
+      });
+  }
+
+  function finishRemediation(data) {
+    state = 'resolved';
+
+    // Update summary to 0
+    updateSummary(data.findings);
+    summaryTotal.textContent = '0 findings';
+    summaryTotal.className = 'summary-total healthy';
+
+    // Show resolved banner
+    scanResolved.classList.add('visible');
+
+    // Show health comparison
+    healthComp.style.display = 'grid';
+
+    // Reset remediate button, show reset button
+    btnRemediate.style.display = 'none';
+    btnScan.disabled = false;
+    btnScanIcon.textContent = '🔍';
+    btnScanText.textContent = 'Rescan';
+    btnReset.style.display = 'inline-flex';
+  }
+
+  // ---- RESET ----
+  function doReset() {
+    if (state !== 'resolved') return;
+
+    fetchAPI('reset').catch(() => {}); // fire and forget
+
+    state = 'idle';
+    clearFindings();
+    hideError();
+
+    // Reset all buttons
+    btnScan.disabled = false;
+    btnScanIcon.textContent = '🔍';
+    btnScanText.textContent = 'Scan Cluster';
+    btnRemediate.style.display = 'none';
+    btnRemediate.disabled = false;
+    btnRemediateIcon.textContent = '🛠️';
+    btnRemediateText.textContent = 'Remediate All';
+    btnReset.style.display = 'none';
+  }
+
+  // ---- EVENT BINDINGS ----
+  btnScan.addEventListener('click', doScan);
+  btnRemediate.addEventListener('click', doRemediate);
+  btnReset.addEventListener('click', doReset);
+  scanErrorRetry.addEventListener('click', function() {
+    hideError();
+    doScan();
+  });
+
+})();
 </script>
 
 </body>
