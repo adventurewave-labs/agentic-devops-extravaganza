@@ -1,3 +1,5 @@
+<p align="center"><img src="assets/banner.svg" alt="agentic-devops-extravaganza — animated banner" width="100%"></p>
+
 # Agentic DevOps Extravaganza
 
 [![CI](https://github.com/adventurewave-labs/agentic-devops-extravaganza/actions/workflows/ci.yml/badge.svg)](https://github.com/adventurewave-labs/agentic-devops-extravaganza/actions/workflows/ci.yml)
