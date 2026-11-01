@@ -285,6 +285,14 @@ No external binaries needed — `scripts/cast_to_gif.py` renders with Pillow. If
 - **The kind path will not reach zero findings.** Pods roll on the kubelet's schedule and node conditions are not ours to set, so CI asserts that remediation *strictly reduces* the finding count there, rather than asserting a number. Only the mock path is deterministic enough for 8 → 0.
 - **No pod logs in the mock.** `kubectl logs` is not implemented, so analyzers and enrichers that read logs have nothing to read. Real Robusta's `logs_enricher` works only on the kind path.
 
+## Related
+
+Part of the AdventureWave Labs Kubernetes demo lane:
+
+- [**AI Kubernetes API Generator**](https://github.com/adventurewave-labs/AI-Kubernetes-API-Generator-Demo) — the sibling repo: natural language to CRD + OpenAPI 3.0 spec via an OpenRouter LLM, applied to a kind cluster. This repo triages clusters that exist; that one creates the APIs.
+- [**noip-scanner**](https://github.com/adventurewave-labs/noip-scanner) — Kubernetes posture scanner with CIS control mappings, pipeline gates, and audit evidence bundles.
+- [**moor-demo**](https://github.com/adventurewave-labs/moor-demo) — the Moor control-plane demo.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
