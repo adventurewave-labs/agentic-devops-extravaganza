@@ -1,0 +1,10 @@
+# agentic-devops-extravaganza
+
+> AI-assisted Kubernetes triage you can run yourself: real k8sgpt + kubectl against a writable mock API (8 findings, then 0), plus a real kind cluster with real Robusta and Prometheus.
+
+agentic-devops-extravaganza is maintained by Adventure Wave Labs (The lab for agentic developer tooling).
+
+## Links
+
+- [Landing page](https://adventurewave-labs.github.io/agentic-devops-extravaganza/): overview, features, FAQ
+- [Source code](https://github.com/adventurewave-labs/agentic-devops-extravaganza): README, issues, releases
